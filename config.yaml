@@ -1,0 +1,17 @@
+credentials:
+  usernames:
+    dperezf:
+      email: daniperez0577@hotmail.com
+      name: Daniel Perez
+      password: $2b$12$Mxa0IDIAu/ztNqH7GOv/H.rwZmQ2qAswkj2CdLxw0l0J4JXdiFZ9.
+    other:
+      email: 
+      name: Visitor
+      password: $2b$12$ENamEN7pUn.B.3ZSUZJoc.IfC4hIVcUcMuW7ySNH9Bsm4ZO1YzZHe
+cookie:
+  expiry_days: 10
+  key: abc123 # Must be string
+  name: spending
+preauthorized:
+  emails:
+  - daniperez0577@hotmail.com
