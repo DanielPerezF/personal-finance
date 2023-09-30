@@ -15,12 +15,12 @@ elif authentication_status:
 
     # --- Input data ---
     date = st.date_input('Date').strftime("%d-%m-%Y")
-    amount = st.number_input('Amount')
+    amount = st.number_input('Amount', step = 1)
     concept = st.selectbox('Concept', ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
                                     'Mercado','Salidas','Salud','Transporte','Viajes'])
     description = st.text_input('Description')
-    recurrent = st.checkbox('Recurrent spending')
-    include = st.checkbox('Include')
+    recurrent = st.checkbox('Recurrent spending', value=True)
+    include = st.checkbox('Include', value=True)
 
     # --- Add data ---
     st.subheader('Add new data')
