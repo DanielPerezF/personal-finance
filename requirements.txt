@@ -5,3 +5,4 @@ seaborn
 matplotlib
 plotly
 streamlit_authenticator
+git+https://github.com/streamlit/gsheets-connection
