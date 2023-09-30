@@ -5,4 +5,3 @@ seaborn
 matplotlib
 plotly
 streamlit_authenticator
-streamlit_gsheets
