@@ -41,7 +41,7 @@ elif authentication_status:
 
     with st.spinner("Please wait..."):
         # Read data function
-        @st.cache_data(ttl=60*5) #Refresh every 5 minutes
+#        @st.cache_data(ttl=30) #Refresh every 30 seconds
         def read_data():
             conn = st.experimental_connection("gsheets", type=GSheetsConnection)
             st.session_state['conn'] = conn
