@@ -54,6 +54,7 @@ elif authentication_status:
             st.subheader('Montly data')
             st.dataframe(monthly_spend)
 
+        # -- Stacked area chart -------
         plt.style.use("dark_background")
         plot = monthly_spend.plot(kind='area', colormap='Paired')
         plot.set_xlabel('Date')
@@ -67,7 +68,7 @@ elif authentication_status:
                     loc='upper left', frameon=False, title_fontproperties={'weight':"bold", 'size':'large'})
         st.pyplot(plot.figure, clear_figure=True)
 
-        # Heatmap
+        # -- Heatmap ------------
         def get_monthly_heatmap(df):
             fig = px.imshow(df, text_auto=True, aspect="auto")
             fig.update_xaxes(side="top")

@@ -35,7 +35,12 @@ elif authentication_status:
         if inserted_pw == st.secrets['password']:
             data.loc[len(data.index)] = new_row
             data['date'] = pd.to_datetime(data['date'], dayfirst=True)
-            st.session_state['conn'].update(data=data)
+            st.session_state['conn'].update(data=data) # Update the database
+
+            # Re read the data from the database
+            data = st.session_state['conn'].read(usecols=list(range(6)))
+            data['date'] = pd.to_datetime(data['date'], dayfirst=True)
+            data = data.dropna(how='all')
             st.success('New data added ☺️')
         else:
             st.error('Incorrect password')
