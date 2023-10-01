@@ -14,13 +14,15 @@ elif authentication_status:
     # --- INSIDE APP AFTER LOGIN -------------
 
     # --- Input data ---
-    date = st.date_input('Date').strftime("%d-%m-%Y")
-    amount = st.number_input('Amount', step = 1)
+    col1, col2 = st.columns(2)
+    date = col1.date_input('Date').strftime("%d-%m-%Y")
+    amount = col2.number_input('Amount', step = 1)
     concept = st.selectbox('Concept', ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
                                     'Mercado','Salidas','Salud','Transporte','Viajes'])
     description = st.text_input('Description')
-    recurrent = st.checkbox('Recurrent spending', value=True)
-    include = st.checkbox('Include', value=True)
+    col1, col2 = st.columns(2)
+    recurrent = col1.checkbox('Recurrent spending', value=True)
+    include = col2.checkbox('Include', value=True)
 
     # --- Add data ---
     st.subheader('Add new data')
