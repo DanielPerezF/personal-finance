@@ -38,11 +38,11 @@ elif authentication_status:
     max_date = new_data['date'].max()
     left_date = col1.date_input('Minimum date', min_value=min_date, value=min_date)
     right_date = col2.date_input('Maximum date', max_value=max_date, value=max_date, min_value=left_date)
-    
 
+    
     mask = (new_data['concept'].isin(include_concepts))&(new_data['recurrent'].isin(recurrent))&(new_data['include'].isin(include))&\
-        (new_data['date']>=left_date.strftime("%d-%m-%Y"))&(new_data['date']<=right_date.strftime("%d-%m-%Y"))
-    new_data['Date'] = new_data.date.dt.strftime('%b-%y')
+        (new_data['date'] >= str(left_date))&(new_data['date'] <= str(right_date))
+    new_data['Date'] = pd.to_datetime(new_data.date).dt.strftime('%b-%y')
     filtered_data = new_data[mask]
 
     # --- Spending chart ----------
@@ -53,6 +53,7 @@ elif authentication_status:
         with st.expander('Show monthly data'):
             st.subheader('Montly data')
             st.dataframe(monthly_spend)
+
 
         # -- Stacked area chart -------
         plt.style.use("dark_background")

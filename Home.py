@@ -46,7 +46,7 @@ elif authentication_status:
             conn = st.experimental_connection("gsheets", type=GSheetsConnection)
             st.session_state['conn'] = conn
             data = conn.read(usecols=list(range(6)))
-            data['date'] = pd.to_datetime(data['date'], dayfirst=True)
+            data['date'] = pd.to_datetime(data['date'], yearfirst=True)
             return data.dropna(how='all')
 
     st.session_state['data'] = read_data()

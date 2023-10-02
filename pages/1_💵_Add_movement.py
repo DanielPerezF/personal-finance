@@ -15,7 +15,7 @@ elif authentication_status:
 
     # --- Input data ---
     col1, col2 = st.columns(2)
-    date = col1.date_input('Date').strftime("%d-%m-%Y")
+    date = col1.date_input('Date') #.strftime("%d-%m-%Y")
     amount = col2.number_input('Amount', step = 1)
     concept = st.selectbox('Concept', ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
                                     'Mercado','Salidas','Salud','Transporte','Viajes'])
@@ -27,19 +27,18 @@ elif authentication_status:
     # --- Add data ---
     st.subheader('Add new data')
     new_row = [date,amount,concept,description,recurrent,include]
-    inserted_pw = st.text_input('Write the password to insert data')
+    inserted_pw = st.number_input('Write the required PIN to insert data', step=1)
 
     data = st.session_state['data']
 
     if st.button('Add data'):
-        if inserted_pw == st.secrets['password']:
+        if inserted_pw == int(st.secrets['password']):
             data.loc[len(data.index)] = new_row
-            data['date'] = pd.to_datetime(data['date'], dayfirst=True)
             st.session_state['conn'].update(data=data) # Update the database
 
             # Re read the data from the database
             data = st.session_state['conn'].read(usecols=list(range(6)))
-            data['date'] = pd.to_datetime(data['date'], dayfirst=True)
+            data['date'] = pd.to_datetime(data['date'], yearfirst=True)
             data = data.dropna(how='all')
             st.success('New data added ☺️')
         else:
