@@ -38,26 +38,36 @@ elif authentication_status:
 # --- INSIDE APP AFTER LOGIN -------------
 
     # url = st.secrets["public_gsheets_url"]
+    conn = st.experimental_connection("gsheets", type=GSheetsConnection, ttl=0)
+    st.session_state['conn'] = conn
 
     with st.spinner("Please wait..."):
         # Read data function
 #        @st.cache_data(ttl=30) #Refresh every 30 seconds
         def read_data():
-            conn = st.experimental_connection("gsheets", type=GSheetsConnection)
-            st.session_state['conn'] = conn
             data = conn.read(usecols=list(range(6)))
+            #st.dataframe(data)
             data['date'] = pd.to_datetime(data['date'], yearfirst=True)
-            return data.dropna(how='all')
+            st.session_state['data'] =  data.dropna(how='all')
 
-    st.session_state['data'] = read_data()
-    reload = st.button('Reload data')
-    if reload:
-        st.session_state['data'] = read_data()
+    read_data()
+    if st.button('Reload data'):
+        read_data()
+        st.success('Data loaded')
+
 
     with st.expander('Raw data'):
-        st.write('Data')
-        st.dataframe(st.session_state['data'])
-    
+        df = st.session_state['data'].copy().astype({'recurrent':bool,'include':bool}) #.sort_values(by='date',ascending=False)
+        concepts = ['Administrativo','Alojamiento','Celular','Comida U',
+                    'Compras varias','Mercado','Salidas','Salud','Transporte','Viajes']
+        edited_df = st.data_editor(df, hide_index=True,
+                                   column_config={'amount':st.column_config.NumberColumn("Amount", format="\N{euro sign} %.1f"),
+                                                  'date':st.column_config.DateColumn('Date'),
+                                                  'concept':st.column_config.SelectboxColumn('Concept', help='Type of spending', required = True, options=concepts),
+                                                  'recurrent':st.column_config.CheckboxColumn('Recurrent',help='Is it recurrent?',default=True),
+                                                  'inclue':st.column_config.CheckboxColumn('Include',help='Include it in monthly averages?',default=True)})
+        st.warning('New info is not saved yet')
+
     # --- Sidebar ---------------
     st.sidebar.title(f'Welcome {name}')
     authenticator.logout('Logout', 'sidebar')
