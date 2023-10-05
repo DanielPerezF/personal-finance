@@ -38,26 +38,26 @@ elif authentication_status:
 # --- INSIDE APP AFTER LOGIN -------------
 
     # url = st.secrets["public_gsheets_url"]
-    conn = st.experimental_connection("gsheets", type=GSheetsConnection, ttl=0)
+    conn = st.experimental_connection("gsheets", type=GSheetsConnection, ttl=1)
     st.session_state['conn'] = conn
 
     with st.spinner("Please wait..."):
         # Read data function
-#        @st.cache_data(ttl=30) #Refresh every 30 seconds
+        # @st.cache_data(ttl=1) #Refresh every n seconds
         def read_data():
             data = conn.read(usecols=list(range(6)))
-            #st.dataframe(data)
             data['date'] = pd.to_datetime(data['date'], yearfirst=True)
             st.session_state['data'] =  data.dropna(how='all')
 
-    read_data()
+    if 'data' not in st.session_state:
+        read_data()
+
     if st.button('Reload data'):
         read_data()
         st.success('Data loaded')
 
-
     with st.expander('Raw data'):
-        df = st.session_state['data'].copy().astype({'recurrent':bool,'include':bool}) #.sort_values(by='date',ascending=False)
+        df = st.session_state['data'].copy().astype({'recurrent':bool,'include':bool}).sort_values(by='date',ascending=False)
         concepts = ['Administrativo','Alojamiento','Celular','Comida U',
                     'Compras varias','Mercado','Salidas','Salud','Transporte','Viajes']
         edited_df = st.data_editor(df, hide_index=True,
@@ -65,9 +65,15 @@ elif authentication_status:
                                                   'date':st.column_config.DateColumn('Date'),
                                                   'concept':st.column_config.SelectboxColumn('Concept', help='Type of spending', required = True, options=concepts),
                                                   'recurrent':st.column_config.CheckboxColumn('Recurrent',help='Is it recurrent?',default=True),
-                                                  'inclue':st.column_config.CheckboxColumn('Include',help='Include it in monthly averages?',default=True)})
-        st.warning('New info is not saved yet')
-
+                                                  'inclue':st.column_config.CheckboxColumn('Include',help='Include it in monthly averages?',default=True)},
+                                    num_rows='dynamic')
+        
+    if st.button('Update data'):
+        with st.status('Updating data'):
+            st.session_state['data'] = edited_df.sort_values(by='date',ascending=True)
+            st.session_state['conn'].update(data=edited_df.sort_values(by='date',ascending=True)) # Update the database
+        st.success('Data updated')
+            
     # --- Sidebar ---------------
     st.sidebar.title(f'Welcome {name}')
     authenticator.logout('Logout', 'sidebar')

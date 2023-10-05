@@ -20,6 +20,7 @@ else:
         # --- INSIDE APP AFTER LOGIN -------------
         # Filter-------
         new_data = st.session_state['data'].copy()
+        new_data['date'] = pd.to_datetime(new_data['date'], yearfirst=True)
 
         st.subheader('Filters')
 
