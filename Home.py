@@ -46,7 +46,7 @@ elif authentication_status:
         # Read data function
         # @st.cache_data(ttl=1) #Refresh every n seconds
         def read_data():
-            data = conn.read(usecols=list(range(6)))
+            data = conn.read(usecols=list(range(6)), worksheet='doubledeg')
             data['date'] = pd.to_datetime(data['date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs changing date format
             st.session_state['data'] =  data.dropna(how='all')
 
