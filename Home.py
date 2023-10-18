@@ -66,20 +66,28 @@ elif authentication_status:
     monthly = st.session_state['data']
     mask = (monthly['recurrent'].isin(recurrent))&(monthly['include'].isin(include))
     filtered = monthly[mask]
-
     filtered['date'] = pd.to_datetime(filtered['date'], yearfirst=True)
-    filtered = filtered.set_index('date')
-    monthly_agg = filtered.groupby(pd.Grouper(freq='M'))['amount'].sum()
-    monthly_agg.index = monthly_agg.index.strftime('%b-%y')
+    
+    today_m = date.today().month
+    today_y = date.today().year
+    this_month = filtered[(filtered.date.dt.month == today_m) & (filtered.date.dt.year ==today_y)]
+    st.write('This month you have spent ' + str(round(this_month['amount'].sum(),1)) + '\N{euro sign}')
 
-    st.write('This month you have spent ' + str(monthly_agg.iloc[-1]) + '\N{euro sign}')
 
-
-    with st.expander('Monthly spending chart'):
-        fig = px.bar(monthly_agg, title='Total monthly spending', text_auto='.0f',
-                    labels={'date':'Month', 'value':'Amount \N{euro sign}'})
+    with st.expander('Monthly spending chart'):  
+        filtered = filtered.set_index('date')
+        if False in include:
+            monthly_agg = filtered.groupby([pd.Grouper(freq='M'), 'include'])['amount'].sum().reset_index(1)
+            fig = px.bar(monthly_agg, title='Total monthly spending', text_auto='.0f',color='include',
+                        labels={'date':'Month', 'value':'Amount \N{euro sign}'})
+        else:
+            monthly_agg = filtered.groupby(pd.Grouper(freq='M'))['amount'].sum()
+            #monthly_agg.index = monthly_agg.index.strftime('%b-%y')
+            fig = px.bar(monthly_agg, title='Total monthly spending', text_auto='.0f',
+                        labels={'date':'Month', 'value':'Amount \N{euro sign}'})
         fig.update_traces(textfont_size=12, textangle=0, textposition="outside", cliponaxis=False)
         fig.update_layout(showlegend=False)
+        fig.update_xaxes(dtick="M1",tickformat="%b\n%Y")
         st.plotly_chart(fig)
 
 
