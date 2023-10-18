@@ -16,7 +16,7 @@ else:
 
         # --- Input data ---
         col1, col2 = st.columns(2)
-        date = col1.date_input('Date') #.strftime("%d-%m-%Y")
+        date = col1.date_input('Date').strftime("%Y-%m-%d")
         amount = col2.number_input('Amount')
         concept = st.selectbox('Concept', ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
                                         'Mercado','Salidas','Salud','Transporte','Viajes'])
@@ -33,6 +33,7 @@ else:
         if st.button('Add data'):
             if inserted_pw == int(st.secrets['password']):
                 data = st.session_state['data'].copy()
+                st.write(data.dtypes)
                 data.loc[len(data.index)] = new_row
                 st.session_state['conn'].update(data=data) # Update the database
                 st.session_state['data'] = data
