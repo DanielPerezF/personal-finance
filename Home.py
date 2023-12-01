@@ -13,7 +13,7 @@ from datetime import date
 
 # --- HOME PAGE ------------------------------
 st.title('Personal finance during double degree')
-st.text('Keep track of personal spending. Add transactions and visualize spending.\nBased on a dataset in GoogleSheets.')
+st.text('Keep track of personal spending. Add transactions and visualize spending.\nBased on a private dataset in GoogleSheets.')
 # Allow users to login
 # Read and update data
 # See monthly spending
@@ -33,12 +33,13 @@ authenticator = stauth.Authenticate(
 name, authentication_status, username = authenticator.login('Login','main')
 st.session_state['auth_state'] = authentication_status
 st.session_state['authenticator'] = authenticator
+st.session_state['username'] = username
 
 if authentication_status == False:
     st.error('Username or password are incorrect')
 elif authentication_status == None:
     st.warning("Please enter your username and password.")
-    st.warning("If other use 'other' as  username and 'abc123' as password")
+    st.warning("If other use 'other' as  username and 'abc123' as password to generate randomize data.")
 elif authentication_status: # Successfull authentication
 
 # --- INSIDE APP AFTER LOGIN -------------
@@ -53,7 +54,12 @@ elif authentication_status: # Successfull authentication
             """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
             data = conn.read(usecols=list(range(6)), worksheet='doubledeg')
             data['date'] = pd.to_datetime(data['date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
+            
+            if username == 'other':
+                data['amount'] = data['amount']*np.random.rand(len(data)) # Randomize amount for 'other' user
+                data.drop(columns=['description'], inplace=True) # Remove description column for 'other' user
             st.session_state['data'] =  data.dropna(how='all') # Remove extra rows that are actually empty
+
 
     if 'data' not in st.session_state: # In case the data was already read before
         read_data()
@@ -65,6 +71,9 @@ elif authentication_status: # Successfull authentication
     # --- MONTHLY SPENDING --------------------------------------
     # See the spending of current and previous month
     st.subheader('Monthly spending')
+    if username == 'other':
+        st.text('For user "other" the data is randomized')
+
     col1, col2 = st.columns(2) # For filtering data to show
     recurrent = col1.multiselect('Recurrent',[True,False], default=[True,False])
     include = col2.multiselect('Include', [True,False], default=[True])
@@ -77,7 +86,8 @@ elif authentication_status: # Successfull authentication
     today_m = date.today().month
     today_y = date.today().year
     this_month = filtered[(filtered.date.dt.month == today_m) & (filtered.date.dt.year == today_y)] # Get only data from current month
-    st.write('This month you have spent ' + str(round(this_month['amount'].sum(),1)) + '\N{euro sign}')
+    this_month_sum = this_month['amount'].sum()  # Total amount spent this month
+    st.write('This month you have spent ' + str(round(this_month_sum,1)) + '\N{euro sign}')
 
     # Chart with total spending for all months
     with st.expander('Monthly spending chart'):  
@@ -88,6 +98,7 @@ elif authentication_status: # Successfull authentication
                         labels={'date':'Month', 'value':'Amount \N{euro sign}'})
         else:
             monthly_agg = filtered.groupby(pd.Grouper(freq='M'))['amount'].sum()
+            monthly_agg.index = monthly_agg.index.strftime("%Y-%m")
             fig = px.bar(monthly_agg, title='Total monthly spending', text_auto='.0f',
                         labels={'date':'Month', 'value':'Amount \N{euro sign}'})
         fig.update_traces(textfont_size=12, textangle=0, textposition="outside", cliponaxis=False) # Annotate data
@@ -112,12 +123,15 @@ elif authentication_status: # Successfull authentication
                                     num_rows='dynamic')
         
     if st.button('Update data'): # apply changes made in edited_df and update sessions_state df as well as gsheets database
-        with st.status('Updating data'):
-            new_df = edited_df.sort_values(by='date',ascending=True) # Return to previous ordering
-            new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d')  # Date column as a string to avoid format changing
-            st.session_state['data'] = new_df            # Update the data in session state
-            st.session_state['conn'].update(data=new_df) # Update the database
-        st.success('Data updated')
+        if username=='other':
+            st.error('You are not authorized to update the data')
+        else:
+            with st.status('Updating data'):
+                new_df = edited_df.sort_values(by='date',ascending=True) # Return to previous ordering
+                new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d')  # Date column as a string to avoid format changing
+                st.session_state['data'] = new_df            # Update the data in session state
+                st.session_state['conn'].update(data=new_df) # Update the database
+            st.success('Data updated')
             
     # --- SIDEBAR ---------------
     st.sidebar.title(f'Welcome {name}')

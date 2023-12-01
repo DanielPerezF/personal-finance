@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # --- ADD NEW TRANSACTIONS --------------------------
-st.title('Add new transaction')
+st.title('Add new movement')
 # Add new movements to the session state and database
 
 if 'auth_state' not in st.session_state: # Check if user is logged in
@@ -34,14 +34,17 @@ else:
         inserted_pw = st.number_input('Write the required PIN to insert data', step=1) # Can modify data only with the correct password
 
         if st.button('Add data'): # Add the transaction to the dataset
-            if inserted_pw == int(st.secrets['password']): # Check if password is correct
-                data = st.session_state['data'].copy()
-                data.loc[len(data.index)] = new_row # Add new row to dataframe
-                st.session_state['conn'].update(data=data) # Update the database
-                st.session_state['data'] = data # Update the data in session state
-                st.success('New data added ☺️')
+            if st.session_state['username'] == 'other': # If user is 'other' then cant update data
+                st.error('You are not authorized to update the data')
             else:
-                st.error('Incorrect password')
+                if inserted_pw == int(st.secrets['password']): # Check if password is correct
+                    data = st.session_state['data'].copy()
+                    data.loc[len(data.index)] = new_row # Add new row to dataframe
+                    st.session_state['conn'].update(data=data) # Update the database
+                    st.session_state['data'] = data # Update the data in session state
+                    st.success('New data added ☺️')
+                else:
+                    st.error('Incorrect password')
 
         # --- Sidebar ---------------
         authenticator = st.session_state['authenticator']
