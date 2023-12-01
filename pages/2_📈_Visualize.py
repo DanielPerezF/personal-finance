@@ -73,6 +73,7 @@ else:
             plot.legend(reversed(handles), reversed(labels), title='Concept', bbox_to_anchor=(1, 1.02),
                         loc='upper left', frameon=False, title_fontproperties={'weight':"bold", 'size':'large'})
             st.pyplot(plot.figure, clear_figure=True)
+            st.text('\n')       # Add extra space
 
             # --- Heatmap ------------
             def get_monthly_heatmap(df):
