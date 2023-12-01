@@ -12,7 +12,7 @@ from yaml.loader import SafeLoader
 from datetime import date
 
 # --- HOME PAGE ------------------------------
-st.title('Personal finance during double degree')
+st.title('Personal finance app')
 st.text('Keep track of personal spending. Add transactions and visualize spending.\nBased on a private dataset in GoogleSheets.')
 # Allow users to login
 # Read and update data
