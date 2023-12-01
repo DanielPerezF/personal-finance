@@ -51,10 +51,14 @@ else:
         if len(filtered_data)>0: # In case filters don't match any data
             monthly_spend = pd.pivot_table(filtered_data, values = 'amount', columns='concept', index='Date', aggfunc='sum', sort=False)
             monthly_spend = monthly_spend[['Alojamiento','Viajes','Mercado','Administrativo','Salidas',
-                                        'Celular','Comida U','Compras varias','Salud','Transporte']]
+                                        'Celular','Comida U','Compras varias','Salud','Transporte']]    # Reorder columns
             with st.expander('Show monthly data'):
                 st.subheader('Montly data')
-                st.dataframe(monthly_spend) # See the table with total monthly spending for each concept
+                total_monthly_spend = monthly_spend.copy()
+                total_monthly_spend['Total'] = total_monthly_spend.sum(axis=1)
+                labels = all_concepts  # Get the names for all categories
+                labels[0] = 'Total'    # Replace the first to show instead of 'All' as 'Total'
+                st.dataframe(total_monthly_spend[labels].iloc[::-1]) # See the table with total monthly spending for each concept, most recent first
 
             # --- Stacked area chart -------
             plt.style.use("dark_background")
