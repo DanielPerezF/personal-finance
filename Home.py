@@ -30,7 +30,7 @@ authenticator = stauth.Authenticate(
     config['preauthorized']
 )
 
-name, authentication_status, username = authenticator.login('Login','main')
+name, authentication_status, username = authenticator.login()
 st.session_state['auth_state'] = authentication_status
 st.session_state['authenticator'] = authenticator
 st.session_state['username'] = username
@@ -45,7 +45,7 @@ elif authentication_status: # Successfull authentication
 # --- INSIDE APP AFTER LOGIN -------------
 
     # url = st.secrets["public_gsheets_url"] # Used if google sheets is public
-    conn = st.experimental_connection("gsheets", type=GSheetsConnection, ttl=1)
+    conn = st.connection("gsheets", type=GSheetsConnection, ttl=1)
     st.session_state['conn'] = conn # Save connection status to database in session state
 
     with st.spinner("Please wait..."):
