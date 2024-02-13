@@ -6,6 +6,7 @@ import plotly.express as px
 
 # --- VISUALIZATIONS ---------------------
 st.title('Visualizations of spending')
+st.write('Working in the _{}_ sheet'.format(st.session_state['gsheet']))
 
 if 'auth_state' not in st.session_state: # In case user is not logged in (maybe after exiting and re-entering the app)
     st.warning("Go back to Home page to login")
@@ -24,14 +25,14 @@ else:
         # --- Filter-------
         st.subheader('Filters')
 
-        all_concepts = ['All','Administrativo','Alojamiento','Celular','Comida U','Compras varias',
+        all_categories = ['All','Administrativo','Alojamiento','Celular','Comida U','Compras varias',
                         'Mercado','Salidas','Salud','Transporte','Viajes']
         
-        concepts = st.multiselect('Concept', all_concepts, default='All')
-        if 'All' in concepts:
-            include_concepts = all_concepts[1:]
+        categories = st.multiselect('Category', all_categories, default='All')
+        if 'All' in categories:
+            include_categories = all_categories[1:]
         else:
-            include_concepts = concepts
+            include_categories = categories
 
         col1, col2 = st.columns(2)
         recurrent = col1.multiselect('Recurrent',[True,False], default=[True,False])
@@ -42,23 +43,23 @@ else:
         left_date = col1.date_input('Minimum date', min_value=min_date, value=min_date)
         right_date = col2.date_input('Maximum date', max_value=max_date, value=max_date, min_value=left_date)
         
-        mask = (new_data['concept'].isin(include_concepts))&(new_data['recurrent'].isin(recurrent))&(new_data['include'].isin(include))&\
+        mask = (new_data['category'].isin(include_categories))&(new_data['recurrent'].isin(recurrent))&(new_data['include'].isin(include))&\
             (new_data['date'] >= str(left_date))&(new_data['date'] <= str(right_date))
         new_data['Date'] = pd.to_datetime(new_data.date).dt.strftime('%b-%y')
         filtered_data = new_data[mask]
 
         # --- Spending chart ----------
         if len(filtered_data)>0: # In case filters don't match any data
-            monthly_spend = pd.pivot_table(filtered_data, values = 'amount', columns='concept', index='Date', aggfunc='sum', sort=False)
+            monthly_spend = pd.pivot_table(filtered_data, values = 'amount', columns='category', index='Date', aggfunc='sum', sort=False)
             monthly_spend = monthly_spend[['Alojamiento','Viajes','Mercado','Administrativo','Salidas',
                                         'Celular','Comida U','Compras varias','Salud','Transporte']]    # Reorder columns
             with st.expander('Show monthly data'):
                 st.subheader('Montly data')
                 total_monthly_spend = monthly_spend.copy()
                 total_monthly_spend['Total'] = total_monthly_spend.sum(axis=1)
-                labels = all_concepts  # Get the names for all categories
+                labels = all_categories  # Get the names for all categories
                 labels[0] = 'Total'    # Replace the first to show instead of 'All' as 'Total'
-                st.dataframe(total_monthly_spend[labels].iloc[::-1]) # See the table with total monthly spending for each concept, most recent first
+                st.dataframe(total_monthly_spend[labels].iloc[::-1]) # See the table with total monthly spending for each category, most recent first
 
             # --- Stacked area chart -------
             plt.style.use("dark_background")
@@ -70,7 +71,7 @@ else:
 
             # move the legend
             handles, labels = plot.get_legend_handles_labels()
-            plot.legend(reversed(handles), reversed(labels), title='Concept', bbox_to_anchor=(1, 1.02),
+            plot.legend(reversed(handles), reversed(labels), title='Category', bbox_to_anchor=(1, 1.02),
                         loc='upper left', frameon=False, title_fontproperties={'weight':"bold", 'size':'large'})
             st.pyplot(plot.figure, clear_figure=True)
             st.text('\n')       # Add extra space

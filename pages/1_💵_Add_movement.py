@@ -3,6 +3,7 @@ import pandas as pd
 
 # --- ADD NEW TRANSACTIONS --------------------------
 st.title('Add new movement')
+st.write('Working in the _{}_ sheet'.format(st.session_state['gsheet']))
 # Add new movements to the session state and database
 
 if 'auth_state' not in st.session_state: # Check if user is logged in
@@ -21,7 +22,7 @@ else:
         col1, col2 = st.columns(2)
         date = col1.date_input('Date').strftime("%Y-%m-%d")
         amount = col2.number_input('Amount')
-        concept = st.selectbox('Concept', ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
+        category = st.selectbox('Category', ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
                                         'Mercado','Salidas','Salud','Transporte','Viajes'])
         description = st.text_input('Description')
         col1, col2 = st.columns(2)
@@ -30,7 +31,7 @@ else:
 
         # --- Add data ------------------------
         st.subheader('Add new data')
-        new_row = [date,amount,concept,description,recurrent,include] # Data for new row
+        new_row = [date,amount,category,description,recurrent,include] # Data for new row
         inserted_pw = st.number_input('Write the required PIN to insert data', step=1) # Can modify data only with the correct password
 
         if st.button('Add data'): # Add the transaction to the dataset
@@ -40,7 +41,7 @@ else:
                 if inserted_pw == int(st.secrets['password']): # Check if password is correct
                     data = st.session_state['data'].copy()
                     data.loc[len(data.index)] = new_row # Add new row to dataframe
-                    st.session_state['conn'].update(data=data) # Update the database
+                    st.session_state['conn'].update(data=data,worksheet = st.session_state['gsheet']) # Update the database
                     st.session_state['data'] = data # Update the data in session state
                     st.success('New data added ☺️')
                 else:
