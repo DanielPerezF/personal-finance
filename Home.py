@@ -51,47 +51,15 @@ elif authentication_status: # Successfull authentication
     conn = st.connection("gsheets", type=GSheetsConnection, ttl=1)
     st.session_state['conn'] = conn # Save connection status to database in session state
 
-    with st.spinner("Please wait..."):
-        # @st.cache_data(ttl=1) #Refresh every n seconds
-        def read_data(gsheet='doubledeg', ncols=6):
-            """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
-            data = conn.read(usecols=list(range(ncols)), worksheet=gsheet)
-            if gsheet == 'inversiones':
-                data['Opening date'] = pd.to_datetime(data['Opening date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
-                data['Closing date'] = pd.to_datetime(data['Closing date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
-            else:
-                data['date'] = pd.to_datetime(data['date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
-            
-            if username == 'other':
-                data['amount'] = data['amount']*np.random.rand(len(data)) # Randomize amount for 'other' user
-                data.drop(columns=['description'], inplace=True) # Remove description column for 'other' user
-            st.session_state['data'] =  data.dropna(how='all') # Remove extra rows that are actually empty
-
     # --- CHOOSE OPTION ------------------------------
-    
-    def on_change(key):
-        selection = st.session_state[key]
-        gsheet, ncols, _ = utils.get_sheet_and_cols(selection)
-        st.session_state['gsheet'] = gsheet
-        read_data(gsheet, ncols)
-
-    selected = option_menu(
-        menu_title=None,
-        options=['Italy','Colombia','Investments'],
-        icons=['airplane','house','cash'],
-        default_index=0,
-        menu_icon='cast',
-        orientation='horizontal',
-        key='menu_1',
-        on_change=on_change
-    )
+    selected = utils.sheet_menu()
     gsheet, ncols, currency = utils.get_sheet_and_cols(selected)
 
     if 'data' not in st.session_state: # In case the data was already read before
-        read_data(gsheet, ncols) # Read the data from the selected sheet
+        utils.read_data(gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
     
     if st.button('Reload data'): # Manually reading data
-        read_data(gsheet, ncols)
+        utils.read_data(gsheet=gsheet, ncols=ncols)
         st.success('Data loaded')
 
     # --- MONTHLY SPENDING --------------------------------------

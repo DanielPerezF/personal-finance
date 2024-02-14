@@ -5,8 +5,25 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 import plotly.express as px
 from datetime import date
+from streamlit_option_menu import option_menu
 
-# --- BASIC ------------------------------------------
+# --- READ DATA ------------------------------------------
+# @st.cache_data(ttl=1) #Refresh every n seconds
+def read_data(conn = st.session_state['conn'], username = st.session_state['username'], gsheet='doubledeg', ncols=6):
+    """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
+    data = conn.read(usecols=list(range(ncols)), worksheet=gsheet)
+    if gsheet == 'inversiones':
+        data['Opening date'] = pd.to_datetime(data['Opening date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
+        data['Closing date'] = pd.to_datetime(data['Closing date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
+    else:
+        data['date'] = pd.to_datetime(data['date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
+    
+    if username == 'other':
+        data['amount'] = data['amount']*np.random.rand(len(data)) # Randomize amount for 'other' user
+        data.drop(columns=['description'], inplace=True) # Remove description column for 'other' user
+    st.session_state['data'] =  data.dropna(how='all') # Remove extra rows that are actually empty
+
+# --- SHEET SELECTION ------------------------------------------
 def get_sheet_and_cols(selection: str):
     """Get the Google Sheet, number of columns to read and currency for the selected database"""
     if selection=='Italy':
@@ -22,6 +39,25 @@ def get_sheet_and_cols(selection: str):
         ncols = 8
         currency = '$'
     return gsheet, ncols, currency
+
+def on_change(key):  # Callback for sheet_menu() -> Update the session state with the selected sheet and load the corresponding data
+    selection = st.session_state[key]
+    gsheet, ncols, _ = get_sheet_and_cols(selection)
+    st.session_state['gsheet'] = gsheet
+    read_data(gsheet = gsheet, ncols = ncols)
+
+def sheet_menu():
+    selected = option_menu(
+        menu_title=None,
+        options=['Italy','Colombia','Investments'],
+        icons=['airplane','house','cash'],
+        default_index=0,
+        menu_icon='cast',
+        orientation='horizontal',
+        key='menu_1',
+        on_change=on_change
+    )
+    return selected
 
 def get_categories(sheet: str) -> list:
     """Get the different possible categories of spending/investments for the selected sheet"""
@@ -100,15 +136,15 @@ def monthly_total_spending(monthly, currency, recurrent=[True,False], include=[T
 def show_input_data(gsheet):
     if gsheet == 'inversiones':
         inv_name = st.text_input('Investment name')
-        platform = st.text_input('Platform')
-        type = st.selectbox('Type', get_categories(gsheet))
         col1, col2 = st.columns(2)
+        platform = col1.text_input('Platform')
+        type = col2.selectbox('Type', get_categories(gsheet))
         opening_date = col1.date_input('Opening date').strftime("%Y-%m-%d")
-        amount_opening = col2.number_input('Amount opening')
+        amount_opening = col2.number_input('Amount opening (COP)')
         comments = st.text_input('Comments')
 
         new_row = [inv_name,platform,type,opening_date,amount_opening,None,None,comments]  # Leave closing date and Amount closing empty
-    else:
+    else:       # doubledeg and personal
         col1, col2 = st.columns(2)
         date = col1.date_input('Date').strftime("%Y-%m-%d")
         amount = col2.number_input('Amount')
