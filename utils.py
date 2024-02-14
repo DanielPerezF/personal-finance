@@ -6,10 +6,11 @@ from matplotlib.dates import DateFormatter
 import plotly.express as px
 from datetime import date
 from streamlit_option_menu import option_menu
+import numpy as np
 
 # --- READ DATA ------------------------------------------
 # @st.cache_data(ttl=1) #Refresh every n seconds
-def read_data(conn = st.session_state['conn'], username = st.session_state['username'], gsheet='doubledeg', ncols=6):
+def read_data(conn, username, gsheet='doubledeg', ncols=6):
     """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
     data = conn.read(usecols=list(range(ncols)), worksheet=gsheet)
     if gsheet == 'inversiones':
@@ -21,6 +22,7 @@ def read_data(conn = st.session_state['conn'], username = st.session_state['user
     if username == 'other':
         data['amount'] = data['amount']*np.random.rand(len(data)) # Randomize amount for 'other' user
         data.drop(columns=['description'], inplace=True) # Remove description column for 'other' user
+    st.session_state['gsheet'] = gsheet
     st.session_state['data'] =  data.dropna(how='all') # Remove extra rows that are actually empty
 
 # --- SHEET SELECTION ------------------------------------------
@@ -44,14 +46,21 @@ def on_change(key):  # Callback for sheet_menu() -> Update the session state wit
     selection = st.session_state[key]
     gsheet, ncols, _ = get_sheet_and_cols(selection)
     st.session_state['gsheet'] = gsheet
-    read_data(gsheet = gsheet, ncols = ncols)
+    read_data(st.session_state['conn'], st.session_state['username'], gsheet = gsheet, ncols = ncols)
 
-def sheet_menu():
+def sheet_menu(default = 0):
+    if 'gsheet' not in st.session_state:                # When initializing the app gsheet is not in session state
+        st.session_state['gsheet'] = 'doubledeg'
+    elif st.session_state['gsheet'] == 'personal':      #If gsheet already has a value show the menu with the corresponding state
+        default = 1 # second option: Colombia
+    elif st.session_state['gsheet'] == 'inversiones':
+        default = 2 # third option: Investments
+
     selected = option_menu(
         menu_title=None,
         options=['Italy','Colombia','Investments'],
         icons=['airplane','house','cash'],
-        default_index=0,
+        default_index=default,
         menu_icon='cast',
         orientation='horizontal',
         key='menu_1',
@@ -59,6 +68,7 @@ def sheet_menu():
     )
     return selected
 
+# --- BASIC FUNCTIONS ------------------------------------------
 def get_categories(sheet: str) -> list:
     """Get the different possible categories of spending/investments for the selected sheet"""
     if sheet=="doubledeg":
@@ -144,7 +154,7 @@ def show_input_data(gsheet):
         comments = st.text_input('Comments')
 
         new_row = [inv_name,platform,type,opening_date,amount_opening,None,None,comments]  # Leave closing date and Amount closing empty
-    else:       # doubledeg and personal
+    elif gsheet == 'doubledeg':       # doubledeg and personal
         col1, col2 = st.columns(2)
         date = col1.date_input('Date').strftime("%Y-%m-%d")
         amount = col2.number_input('Amount')
@@ -154,6 +164,21 @@ def show_input_data(gsheet):
         recurrent = col1.checkbox('Recurrent spending', value=True) # If movement is recurrent monthly
         include = col2.checkbox('Include', value=True)              # If want to include movement later in visualizations and aggregations
 
+        new_row = [date,amount,category,description,recurrent,include] # Data for new row
+
+    elif gsheet == 'personal':
+        col1, col2 = st.columns(2)
+        date = col1.date_input('Date').strftime("%Y-%m-%d")
+        amount = col2.number_input('Amount', step=1, format='%d')
+        category = st.selectbox('Category', get_categories(gsheet))
+        description = st.text_input('Description')
+        col1, col2, col3 = st.columns(3)
+        recurrent = col1.checkbox('Recurrent spending', value=True) # If movement is recurrent monthly
+        include = col2.checkbox('Include', value=True)              # If want to include movement later in visualizations and aggregations
+        expense = col3.checkbox('Expense', value=True)              # If movement is an expense, if not is considered an income
+
+        if expense:
+            amount = -amount
         new_row = [date,amount,category,description,recurrent,include] # Data for new row
 
     return new_row

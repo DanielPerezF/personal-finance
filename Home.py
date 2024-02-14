@@ -56,10 +56,10 @@ elif authentication_status: # Successfull authentication
     gsheet, ncols, currency = utils.get_sheet_and_cols(selected)
 
     if 'data' not in st.session_state: # In case the data was already read before
-        utils.read_data(gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
+        utils.read_data(st.session_state['conn'], st.session_state['username'], gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
     
     if st.button('Reload data'): # Manually reading data
-        utils.read_data(gsheet=gsheet, ncols=ncols)
+        utils.read_data(st.session_state['conn'], st.session_state['username'], gsheet=gsheet, ncols=ncols)
         st.success('Data loaded')
 
     # --- MONTHLY SPENDING --------------------------------------

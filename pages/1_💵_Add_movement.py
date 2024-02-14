@@ -39,7 +39,7 @@ else:
                     data.loc[len(data.index)] = new_row # Add new row to dataframe
                     st.session_state['conn'].update(data=data,worksheet = st.session_state['gsheet']) # Update the database
                     st.session_state['data'] = data # Update the data in session state
-                    st.success('New data added ☺️')
+                    st.success('New data added to "{}" ☺️'.format(st.session_state['gsheet']))
                 else:
                     st.error('Incorrect password')
 
