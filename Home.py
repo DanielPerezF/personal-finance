@@ -1,16 +1,10 @@
 # LIBRARIES ------------------------------
 import streamlit as st
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import plotly.express as px
 import streamlit_authenticator as stauth
 from streamlit_gsheets import GSheetsConnection
 from streamlit_option_menu import option_menu
 import yaml
 from yaml.loader import SafeLoader
-from datetime import date
 import utils
 
 # --- HOME PAGE ------------------------------

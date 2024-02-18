@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
+import seaborn as sns
+import matplotlib.patches as mpatches
 import plotly.express as px
 from datetime import date
 from streamlit_option_menu import option_menu
@@ -142,6 +144,21 @@ def monthly_total_spending(monthly, currency, recurrent=[True,False], include=[T
         st.write('This month you have invested ' +currency + '{:,.0f}'.format(this_month_open_sum))
         st.write('This month you have received ' +currency + '{:,.0f}'.format(this_month_close_sum))
 
+def process_investments(data):
+    new_data = data.copy()
+    new_data['Opening date'] = pd.to_datetime(new_data['Opening date'], yearfirst=True)
+    new_data['Closing date'] = pd.to_datetime(new_data['Closing date'], yearfirst=True)
+    new_data['Active'] = new_data['Closing date'].isna()  # If its nan (no closing date yet) then the investment is active
+    new_data['Earnings'] = new_data['Amount closing'] - new_data['Amount opening']
+    new_data['ROI'] = new_data['Earnings'] / new_data['Amount opening']
+    new_data['months'] = (new_data['Closing date'] - new_data['Opening date']).dt.days / 30
+    new_data['EA'] = (new_data['Amount closing']/new_data['Amount opening'])**(12/new_data['months'])-1
+
+    with st.expander('Show investments'):
+        st.dataframe(new_data, column_config={'Opening date':st.column_config.DateColumn('Opening date'),
+                                            'Closing date':st.column_config.DateColumn('Closing date'),
+                                            'months':st.column_config.NumberColumn('months',format="%.1f"),})
+    return new_data
 # --- ADDING NEW MOVEMENTS -------------------------------------------------------------------------------
 def show_input_data(gsheet):
     if gsheet == 'inversiones':
@@ -184,7 +201,17 @@ def show_input_data(gsheet):
     return new_row
 
 # --- PLOTS ----------------------------------------------------------------------------------------------
-# --- Monthly spending plot for personal and doubledeg ------------
+# --- Monthly table with totals ----------------
+def monthly_table(filtered_data: pd.DataFrame):    
+    monthly_spend = pd.pivot_table(filtered_data, values = 'amount', columns='category', index='Date', aggfunc='sum', sort=False)
+    with st.expander('Show monthly table by category'):
+        st.subheader('Montly data')
+        total_monthly_spend = monthly_spend.copy()
+        total_monthly_spend.insert(0,'Total',total_monthly_spend.sum(axis=1))  # Insert a first column with the totals
+        st.dataframe(total_monthly_spend.iloc[::-1]) # See the table with total monthly spending for each category, most recent first
+    return monthly_spend
+
+# --- Monthly spending plot for personal and doubledeg (used in home page) ------------
 def monthly_spending_plot(filtered,include,currency):
     filtered = filtered.set_index('date')
     if False in include: # In order to show different colors
@@ -201,8 +228,51 @@ def monthly_spending_plot(filtered,include,currency):
     fig.update_xaxes(dtick="M1",tickformat="%b\n%Y") # Show monthly ticks in x-axis
     st.plotly_chart(fig) # Show figure
 
+# --- Stacked bar chart for doubledeg and personal -----
+def stacked_bar_chart(monthly_spend: pd.DataFrame, currency: str, gsheet = 'doubledeg'):
+    totals = monthly_spend.sum(axis=1)  # Total per month
+
+    with st.expander('Show monthly chart by category'):
+        plt.style.use("dark_background")
+        plot = monthly_spend.plot.bar(stacked=True, colormap='Paired', width=0.9)
+        if gsheet == 'personal':  # if sheet personal (that has income and expenses) add a line chart with the total
+            totals.plot(ax=plot, color='red', linewidth=1.5, label='Total', linestyle='--')
+        # plot.set_xlabel('Date')
+        plot.tick_params(axis='x', rotation=90)
+        plot.set_ylabel('Amount '+currency)
+        ylabels = ['{:,.0f}'.format(y) for y in plot.get_yticks()]
+        plot.set_yticklabels(ylabels)
+        plot.set_title('Monthly spending')
+        plot.autoscale(enable=True, axis='x', tight=True)
+
+        # move the legend
+        handles, labels = plot.get_legend_handles_labels()
+        plot.legend(reversed(handles), reversed(labels), title='Category', bbox_to_anchor=(1, 1.02),
+                    loc='upper left', frameon=False, title_fontproperties={'weight':"bold", 'size':'large'})
+        st.pyplot(plot.figure, clear_figure=True)
+        st.text('\n')       # Add extra space
+
 # --- Heatmap ------------
-def get_monthly_heatmap(df: pd.DataFrame):
-    fig = px.imshow(df, text_auto=True, aspect="auto")
-    fig.update_xaxes(side="top")
-    st.plotly_chart(fig, theme=None) # , theme="streamlit"
+def get_monthly_heatmap(monthly_spend: pd.DataFrame):
+    with st.expander('Show heatmap'):
+        fig = px.imshow(monthly_spend, text_auto=True, aspect="auto")
+        fig.update_xaxes(side="top")
+        fig.update_layout(xaxis_title=None)
+        st.plotly_chart(fig, theme=None) # , theme="streamlit"
+
+def pie_plot_invs(new_data):
+    active_invs = new_data[new_data['Active']][['Investment', 'Platform', 'Type','Amount opening','Opening date']]
+    total_inv = active_invs['Amount opening'].sum()
+    title = 'Total investment: $ {:,.0f}'.format(total_inv)
+
+    types = active_invs['Type'].unique()
+    colors = sns.color_palette('Set2')[0:len(types)]
+    color_dict = dict(zip(types, colors))
+    active_invs['color'] = active_invs['Type'].map(color_dict)
+
+    pie_plot = active_invs.plot.pie(y='Amount opening', labels=active_invs['Investment'],
+                                    autopct='%1.1f%%', legend=False, ylabel='', colors=active_invs['color'], textprops={'fontsize': 8})
+    plt.title(title, fontsize=16, fontweight='bold')
+    legend_patches = [mpatches.Patch(color=color_dict[inv_type], label=inv_type) for inv_type in types]
+    plt.legend(handles=legend_patches, loc='center left', bbox_to_anchor=(1, 0.7))
+    st.pyplot(pie_plot.figure)
