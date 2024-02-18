@@ -1,12 +1,7 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.dates import DateFormatter
-import plotly.express as px
 import utils
-import numpy as np
-import seaborn as sns
+
 
 # --- VISUALIZATIONS ---------------------
 st.title('Visualizations of spending')
@@ -30,7 +25,7 @@ else:
         if gsheet == 'inversiones': 
             new_data = utils.process_investments(new_data)
             utils.pie_plot_invs(new_data)
-            
+
         else:  # if personal or doubledeg where date column exists
             new_data['date'] = pd.to_datetime(new_data['date'], yearfirst=True)
 

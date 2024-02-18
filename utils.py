@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.dates import DateFormatter
 import seaborn as sns
 import matplotlib.patches as mpatches
 import plotly.express as px
