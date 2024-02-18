@@ -1,15 +1,11 @@
 # LIBRARIES ------------------------------
 import streamlit as st
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import plotly.express as px
 import streamlit_authenticator as stauth
 from streamlit_gsheets import GSheetsConnection
+from streamlit_option_menu import option_menu
 import yaml
 from yaml.loader import SafeLoader
-from datetime import date
+import utils
 
 # --- HOME PAGE ------------------------------
 st.title('Personal finance app')
@@ -44,28 +40,20 @@ elif authentication_status: # Successfull authentication
 
 # --- INSIDE APP AFTER LOGIN -------------
 
+    # --- READ DATA FROM GOOGLE SHEETS ---------------------
     # url = st.secrets["public_gsheets_url"] # Used if google sheets is public
     conn = st.connection("gsheets", type=GSheetsConnection, ttl=1)
     st.session_state['conn'] = conn # Save connection status to database in session state
 
-    with st.spinner("Please wait..."):
-        # @st.cache_data(ttl=1) #Refresh every n seconds
-        def read_data():
-            """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
-            data = conn.read(usecols=list(range(6)), worksheet='doubledeg')
-            data['date'] = pd.to_datetime(data['date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
-            
-            if username == 'other':
-                data['amount'] = data['amount']*np.random.rand(len(data)) # Randomize amount for 'other' user
-                data.drop(columns=['description'], inplace=True) # Remove description column for 'other' user
-            st.session_state['data'] =  data.dropna(how='all') # Remove extra rows that are actually empty
-
+    # --- CHOOSE OPTION ------------------------------
+    selected = utils.sheet_menu()
+    gsheet, ncols, currency = utils.get_sheet_and_cols(selected)
 
     if 'data' not in st.session_state: # In case the data was already read before
-        read_data()
+        utils.read_data(st.session_state['conn'], st.session_state['username'], gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
     
     if st.button('Reload data'): # Manually reading data
-        read_data()
+        utils.read_data(st.session_state['conn'], st.session_state['username'], gsheet=gsheet, ncols=ncols)
         st.success('Data loaded')
 
     # --- MONTHLY SPENDING --------------------------------------
@@ -78,49 +66,18 @@ elif authentication_status: # Successfull authentication
     recurrent = col1.multiselect('Recurrent',[True,False], default=[True,False])
     include = col2.multiselect('Include', [True,False], default=[True])
 
-    monthly = st.session_state['data'] # Create copy of dataframe
-    mask = (monthly['recurrent'].isin(recurrent))&(monthly['include'].isin(include))
-    filtered = monthly[mask] # Apply filters
-    filtered['date'] = pd.to_datetime(filtered['date'], yearfirst=True)
+    filtered = utils.monthly_total_spending(st.session_state['data'], currency, recurrent, include)
     
-    today_m = date.today().month
-    today_y = date.today().year
-    this_month = filtered[(filtered.date.dt.month == today_m) & (filtered.date.dt.year == today_y)] # Get only data from current month
-    this_month_sum = this_month['amount'].sum()  # Total amount spent this month
-    st.write('This month you have spent ' + str(round(this_month_sum,1)) + '\N{euro sign}')
-
     # Chart with total spending for all months
-    with st.expander('Monthly spending chart'):  
-        filtered = filtered.set_index('date')
-        if False in include: # In order to show different colors
-            monthly_agg = filtered.groupby([pd.Grouper(freq='M'), 'include'])['amount'].sum().reset_index(1)
-            fig = px.bar(monthly_agg, title='Total monthly spending', text_auto='.0f',color='include',
-                        labels={'date':'Month', 'value':'Amount \N{euro sign}'})
-        else:
-            monthly_agg = filtered.groupby(pd.Grouper(freq='M'))['amount'].sum()
-            monthly_agg.index = monthly_agg.index.strftime("%Y-%m")
-            fig = px.bar(monthly_agg, title='Total monthly spending', text_auto='.0f',
-                        labels={'date':'Month', 'value':'Amount \N{euro sign}'})
-        fig.update_traces(textfont_size=12, textangle=0, textposition="outside", cliponaxis=False) # Annotate data
-        fig.update_layout(showlegend=False) # Remove legend
-        fig.update_xaxes(dtick="M1",tickformat="%b\n%Y") # Show monthly ticks in x-axis
-        st.plotly_chart(fig) # Show figure
+    if filtered is not None:  # filtered is None if there using ghseet "inversiones" -> no need for monthly plot
+        with st.expander('Monthly spending chart'):  
+            utils.monthly_spending_plot(filtered,include,currency)
 
 
     # --- SHOW RAW DATA --------------------------------------
     with st.expander('Raw data'):
         # Create copy of data, modify column types and sort to show first most recent transactions
-        df = st.session_state['data'].copy().astype({'recurrent':bool,'include':bool}).sort_values(by='date',ascending=False)
-        df['date'] = pd.to_datetime(df['date'], yearfirst=True)
-        concepts = ['Administrativo','Alojamiento','Celular','Comida U',
-                    'Compras varias','Mercado','Salidas','Salud','Transporte','Viajes']
-        edited_df = st.data_editor(df, hide_index=True,
-                                   column_config={'amount':st.column_config.NumberColumn("Amount", format="\N{euro sign} %.1f"),
-                                                  'date':st.column_config.DateColumn('Date'),
-                                                  'concept':st.column_config.SelectboxColumn('Concept', help='Type of spending', required = True, options=concepts),
-                                                  'recurrent':st.column_config.CheckboxColumn('Recurrent',help='Is it recurrent?',default=True),
-                                                  'inclue':st.column_config.CheckboxColumn('Include',help='Include it in monthly averages?',default=True)},
-                                    num_rows='dynamic')
+        edited_df = utils.show_raw_data(st.session_state['data'], st.session_state['gsheet'], currency)
         
     if st.button('Update data'): # apply changes made in edited_df and update sessions_state df as well as gsheets database
         if username=='other':
@@ -130,7 +87,7 @@ elif authentication_status: # Successfull authentication
                 new_df = edited_df.sort_values(by='date',ascending=True) # Return to previous ordering
                 new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d')  # Date column as a string to avoid format changing
                 st.session_state['data'] = new_df            # Update the data in session state
-                st.session_state['conn'].update(data=new_df) # Update the database
+                st.session_state['conn'].update(data=new_df, worksheet=st.session_state['gsheet']) # Update the database
             st.success('Data updated')
             
     # --- SIDEBAR ---------------

@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.dates import DateFormatter
-import plotly.express as px
+import utils
+
 
 # --- VISUALIZATIONS ---------------------
 st.title('Visualizations of spending')
+selected = utils.sheet_menu()
+gsheet, ncols, currency = utils.get_sheet_and_cols(selected)
+st.write('Working in the _{}_ sheet'.format(st.session_state['gsheet']))
 
 if 'auth_state' not in st.session_state: # In case user is not logged in (maybe after exiting and re-entering the app)
     st.warning("Go back to Home page to login")
@@ -18,72 +20,53 @@ else:
     elif authentication_status:
 
         # --- INSIDE APP AFTER LOGIN -------------
-        new_data = st.session_state['data'].copy() # Read the data
-        new_data['date'] = pd.to_datetime(new_data['date'], yearfirst=True)
+        new_data = st.session_state['data'].copy() # Read the data and format dates
 
-        # --- Filter-------
-        st.subheader('Filters')
+        if gsheet == 'inversiones': 
+            new_data = utils.process_investments(new_data)
+            utils.pie_plot_invs(new_data)
 
-        all_concepts = ['All','Administrativo','Alojamiento','Celular','Comida U','Compras varias',
-                        'Mercado','Salidas','Salud','Transporte','Viajes']
-        
-        concepts = st.multiselect('Concept', all_concepts, default='All')
-        if 'All' in concepts:
-            include_concepts = all_concepts[1:]
-        else:
-            include_concepts = concepts
+        else:  # if personal or doubledeg where date column exists
+            new_data['date'] = pd.to_datetime(new_data['date'], yearfirst=True)
 
-        col1, col2 = st.columns(2)
-        recurrent = col1.multiselect('Recurrent',[True,False], default=[True,False])
-        include = col2.multiselect('Include', [True,False], default=[True])
+            # --- Filter-------
+            st.subheader('Filters')
 
-        min_date = new_data['date'].min()
-        max_date = new_data['date'].max()
-        left_date = col1.date_input('Minimum date', min_value=min_date, value=min_date)
-        right_date = col2.date_input('Maximum date', max_value=max_date, value=max_date, min_value=left_date)
-        
-        mask = (new_data['concept'].isin(include_concepts))&(new_data['recurrent'].isin(recurrent))&(new_data['include'].isin(include))&\
-            (new_data['date'] >= str(left_date))&(new_data['date'] <= str(right_date))
-        new_data['Date'] = pd.to_datetime(new_data.date).dt.strftime('%b-%y')
-        filtered_data = new_data[mask]
+            all_categories = utils.get_categories(st.session_state['gsheet'])
+            all_categories.insert(0, 'All') # Add 'All' as the first element
 
-        # --- Spending chart ----------
-        if len(filtered_data)>0: # In case filters don't match any data
-            monthly_spend = pd.pivot_table(filtered_data, values = 'amount', columns='concept', index='Date', aggfunc='sum', sort=False)
-            monthly_spend = monthly_spend[['Alojamiento','Viajes','Mercado','Administrativo','Salidas',
-                                        'Celular','Comida U','Compras varias','Salud','Transporte']]    # Reorder columns
-            with st.expander('Show monthly data'):
-                st.subheader('Montly data')
-                total_monthly_spend = monthly_spend.copy()
-                total_monthly_spend['Total'] = total_monthly_spend.sum(axis=1)
-                labels = all_concepts  # Get the names for all categories
-                labels[0] = 'Total'    # Replace the first to show instead of 'All' as 'Total'
-                st.dataframe(total_monthly_spend[labels].iloc[::-1]) # See the table with total monthly spending for each concept, most recent first
+            categories = st.multiselect('Category', all_categories, default='All')
+            if 'All' in categories:
+                include_categories = all_categories[1:] # Keep all categories except 'All', as it is not an actual category
+            else:
+                include_categories = categories
 
-            # --- Stacked area chart -------
-            plt.style.use("dark_background")
-            plot = monthly_spend.plot(kind='area', colormap='Paired')
-            plot.set_xlabel('Date')
-            plot.set_ylabel('Amount \N{euro sign}')
-            plot.set_title('Monthly spending')
-            plot.autoscale(enable=True, axis='x', tight=True)
+            col1, col2 = st.columns(2)
+            recurrent = col1.multiselect('Recurrent',[True,False], default=[True,False])
+            include = col2.multiselect('Include', [True,False], default=[True])
 
-            # move the legend
-            handles, labels = plot.get_legend_handles_labels()
-            plot.legend(reversed(handles), reversed(labels), title='Concept', bbox_to_anchor=(1, 1.02),
-                        loc='upper left', frameon=False, title_fontproperties={'weight':"bold", 'size':'large'})
-            st.pyplot(plot.figure, clear_figure=True)
-            st.text('\n')       # Add extra space
+            min_date = new_data['date'].min()
+            max_date = new_data['date'].max()
+            left_date = col1.date_input('Minimum date', min_value=min_date, value=min_date)
+            right_date = col2.date_input('Maximum date', max_value=max_date, value=max_date, min_value=left_date)
+            
+            mask = (new_data['category'].isin(include_categories))&(new_data['recurrent'].isin(recurrent))&(new_data['include'].isin(include))&\
+                (new_data['date'] >= str(left_date))&(new_data['date'] <= str(right_date))
+            new_data['Date'] = pd.to_datetime(new_data.date).dt.strftime('%b-%y')
+            filtered_data = new_data[mask]
 
-            # --- Heatmap ------------
-            def get_monthly_heatmap(df):
-                fig = px.imshow(df, text_auto=True, aspect="auto")
-                fig.update_xaxes(side="top")
-                st.plotly_chart(fig, theme=None) # , theme="streamlit"
-            get_monthly_heatmap(monthly_spend)
-        
-        else:
-            st.warning('No data matches the filters')
+            # --- Spending chart ----------
+            if len(filtered_data)>0: # In case filters don't match any data
+                monthly_spend = utils.monthly_table(filtered_data)
+
+                # --- Stacked bar chart -------
+                utils.stacked_bar_chart(monthly_spend, currency, gsheet)
+
+                # --- Heatmap ------------
+                utils.get_monthly_heatmap(monthly_spend)
+            
+            else:
+                st.warning('No data matches the filters')
 
         # --- Sidebar ---------------
         authenticator = st.session_state['authenticator']
