@@ -84,10 +84,7 @@ elif authentication_status: # Successfull authentication
             st.error('You are not authorized to update the data')
         else:
             with st.status('Updating data'):
-                new_df = edited_df.sort_values(by='date',ascending=True) # Return to previous ordering
-                new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d')  # Date column as a string to avoid format changing
-                st.session_state['data'] = new_df            # Update the data in session state
-                st.session_state['conn'].update(data=new_df, worksheet=st.session_state['gsheet']) # Update the database
+                utils.update_data(edited_df, st.session_state['gsheet'])
             st.success('Data updated')
             
     # --- SIDEBAR ---------------

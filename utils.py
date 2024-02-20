@@ -13,6 +13,7 @@ import numpy as np
 # @st.cache_data(ttl=1) #Refresh every n seconds
 def read_data(conn, username, gsheet='doubledeg', ncols=6):
     """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
+
     data = conn.read(usecols=list(range(ncols)), worksheet=gsheet)
     if gsheet == 'inversiones':
         data['Opening date'] = pd.to_datetime(data['Opening date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
@@ -29,6 +30,7 @@ def read_data(conn, username, gsheet='doubledeg', ncols=6):
 # --- SHEET SELECTION ------------------------------------------
 def get_sheet_and_cols(selection: str):
     """Get the Google Sheet, number of columns to read and currency for the selected database"""
+
     if selection=='Italy':
         gsheet = 'doubledeg'
         ncols = 6
@@ -43,16 +45,20 @@ def get_sheet_and_cols(selection: str):
         currency = '$'
     return gsheet, ncols, currency
 
-def on_change(key):  # Callback for sheet_menu() -> Update the session state with the selected sheet and load the corresponding data
+def on_change(key):
+    """Callback for sheet_menu() -> Update the session state with the selected sheet and load the corresponding data"""
+
     selection = st.session_state[key]
     gsheet, ncols, _ = get_sheet_and_cols(selection)
     st.session_state['gsheet'] = gsheet
     read_data(st.session_state['conn'], st.session_state['username'], gsheet = gsheet, ncols = ncols)
 
 def sheet_menu(default = 0):
+    """Show the menu to select the Google Sheet and return the selected option as a string"""
+
     if 'gsheet' not in st.session_state:                # When initializing the app gsheet is not in session state
-        st.session_state['gsheet'] = 'doubledeg'
-    elif st.session_state['gsheet'] == 'personal':      #If gsheet already has a value show the menu with the corresponding state
+        st.session_state['gsheet'] = 'doubledeg'        # Initialize as doubledeg
+    elif st.session_state['gsheet'] == 'personal':      # If gsheet already has a value show the menu with the corresponding state
         default = 1 # second option: Colombia
     elif st.session_state['gsheet'] == 'inversiones':
         default = 2 # third option: Investments
@@ -72,6 +78,7 @@ def sheet_menu(default = 0):
 # --- BASIC FUNCTIONS ------------------------------------------
 def get_categories(sheet: str) -> list:
     """Get the different possible categories of spending/investments for the selected sheet"""
+
     if sheet=="doubledeg":
         categories = ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
                         'Mercado','Salidas','Salud','Transporte','Viajes']
@@ -79,6 +86,7 @@ def get_categories(sheet: str) -> list:
         categories = ['Ahorros','Salidas','Transporte','Compras','Viajes','Salario','Clases particulares']
     elif sheet=="inversiones":
         categories = ['Acciones','Fondo','Divisas','ETF','Particular']
+
     return categories
 
 # --- show raw data for doubledeg and personal --------------------------
@@ -110,6 +118,19 @@ def show_raw_data(df: pd.DataFrame, gsheet: str, currency: str) -> pd.DataFrame:
                                     num_rows='dynamic')
     return edited_df
 
+def update_data(edited_df: pd.DataFrame, gsheet: str):
+    """After editing the DataFrame shown by show_raw_data(), update the database with the new DataFrame"""
+    
+    if gsheet == 'inversiones':
+        new_df = edited_df.sort_values(by='Opening date',ascending=True) # Return to previous ordering
+        new_df['Opening date'] = new_df['Opening date'].dt.strftime('%Y-%m-%d')
+        new_df['Closing date'] = new_df['Closing date'].dt.strftime('%Y-%m-%d')
+    else:
+        new_df = edited_df.sort_values(by='date',ascending=True)    # Return to previous ordering
+        new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d')     # Date column as a string to avoid format changing
+    st.session_state['data'] = new_df                               # Update the data in session state
+    st.session_state['conn'].update(data=new_df, worksheet=gsheet)  # Update the database
+
 def monthly_total_spending(monthly, currency, recurrent=[True,False], include=[True]):
     """Print the total amount spent this month and the balance, depending on the sheet selected. Pass the data st.session_state['data'] and the currency as inputs"""
 
@@ -123,20 +144,20 @@ def monthly_total_spending(monthly, currency, recurrent=[True,False], include=[T
         this_month = filtered[(filtered.date.dt.month == today_m) & (filtered.date.dt.year == today_y)] # Get only data from current month
 
         if st.session_state['gsheet'] == 'doubledeg':
-            this_month_sum = this_month['amount'].sum()  # Total amount spent this month
+            this_month_sum = this_month['amount'].sum()                                                 # Total amount spent this month
             st.write('This month you have spent ' +currency + '{:,.0f}'.format(this_month_sum))
 
         elif st.session_state['gsheet'] == 'personal':
-            this_month_sum = -this_month[this_month['amount'] < 0]['amount'].sum()  # Total amount spent this month (negative values represent expenses)
+            this_month_sum = -this_month[this_month['amount'] < 0]['amount'].sum()                      # Total amount spent this month (negative values represent expenses)
             st.write('This month you have spent ' +currency + '{:,.0f}'.format(this_month_sum))
-            this_month_balance = this_month['amount'].sum()  # Total balance for this month (considering expenses and income)
+            this_month_balance = this_month['amount'].sum()                                             # Total balance for this month (considering expenses and income)
             st.write('This month your balance is ' +currency + '{:,.0f}'.format(this_month_balance))
-        return filtered
+        return filtered                                                                                 # Return the filtered dataframe used for further plotting
 
     elif st.session_state['gsheet'] == 'inversiones':
-        monthly['Opening date'] = pd.to_datetime(monthly['Opening date'], yearfirst=True)
+        monthly['Opening date'] = pd.to_datetime(monthly['Opening date'], yearfirst=True)                                           # Convert to datetime                                       
         monthly['Closing date'] = pd.to_datetime(monthly['Closing date'], yearfirst=True)
-        this_month_open = monthly[(monthly['Opening date'].dt.month == today_m) & (monthly['Opening date'].dt.year == today_y)]
+        this_month_open = monthly[(monthly['Opening date'].dt.month == today_m) & (monthly['Opening date'].dt.year == today_y)]     # Get data in the given date range
         this_month_close = monthly[(monthly['Closing date'].dt.month == today_m) & (monthly['Closing date'].dt.year == today_y)]
         this_month_open_sum = this_month_open['Amount opening'].sum()
         this_month_close_sum = this_month_close['Amount closing'].sum()
@@ -144,22 +165,27 @@ def monthly_total_spending(monthly, currency, recurrent=[True,False], include=[T
         st.write('This month you have received ' +currency + '{:,.0f}'.format(this_month_close_sum))
 
 def process_investments(data):
+    """If the selected sheet is 'inversiones', process the data to add new columns and return the new dataframe with the changes. Pass the data st.session_state['data'] as input"""
+
     new_data = data.copy()
     new_data['Opening date'] = pd.to_datetime(new_data['Opening date'], yearfirst=True)
     new_data['Closing date'] = pd.to_datetime(new_data['Closing date'], yearfirst=True)
-    new_data['Active'] = new_data['Closing date'].isna()  # If its nan (no closing date yet) then the investment is active
-    new_data['Earnings'] = new_data['Amount closing'] - new_data['Amount opening']
-    new_data['ROI'] = new_data['Earnings'] / new_data['Amount opening']
-    new_data['months'] = (new_data['Closing date'] - new_data['Opening date']).dt.days / 30
-    new_data['EA'] = (new_data['Amount closing']/new_data['Amount opening'])**(12/new_data['months'])-1
+    new_data['Active'] = new_data['Closing date'].isna()                                                    # If its nan (no closing date yet) then the investment is active
+    new_data['Earnings'] = new_data['Amount closing'] - new_data['Amount opening']                          # Total Earnings
+    new_data['ROI'] = new_data['Earnings'] / new_data['Amount opening']                                     # Return of investment
+    new_data['months'] = (new_data['Closing date'] - new_data['Opening date']).dt.days / 30                 # Months the investment was active
+    new_data['EA'] = (new_data['Amount closing']/new_data['Amount opening'])**(12/new_data['months'])-1     # Equivalent annual rate of return
 
     with st.expander('Show investments'):
         st.dataframe(new_data, column_config={'Opening date':st.column_config.DateColumn('Opening date'),
                                             'Closing date':st.column_config.DateColumn('Closing date'),
                                             'months':st.column_config.NumberColumn('months',format="%.1f"),})
     return new_data
+
 # --- ADDING NEW MOVEMENTS -------------------------------------------------------------------------------
 def show_input_data(gsheet):
+    """According to the selected sheet, show the input fields and generate the new row to add to the DataFrame. Pass the selected sheet as input"""
+
     if gsheet == 'inversiones':
         inv_name = st.text_input('Investment name')
         col1, col2 = st.columns(2)
@@ -194,7 +220,7 @@ def show_input_data(gsheet):
         expense = col3.checkbox('Expense', value=True)              # If movement is an expense, if not is considered an income
 
         if expense:
-            amount = -amount
+            amount = -amount                                        # If expense, change sign to negative
         new_row = [date,amount,category,description,recurrent,include] # Data for new row
 
     return new_row
