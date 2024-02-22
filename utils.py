@@ -43,6 +43,7 @@ def get_sheet_and_cols(selection: str):
         gsheet = 'inversiones'
         ncols = 8
         currency = '$'
+    st.session_state['gsheet'] = gsheet
     return gsheet, ncols, currency
 
 def on_change(key):
