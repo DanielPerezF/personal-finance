@@ -19,7 +19,7 @@ def read_data(conn, username, gsheet='doubledeg', ncols=6):
         data['Opening date'] = pd.to_datetime(data['Opening date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
         data['Closing date'] = pd.to_datetime(data['Closing date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
     else:
-        data['date'] = pd.to_datetime(data['date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
+        data.loc[:,'date'] = pd.to_datetime(data['date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
     
     if username == 'other':
         data['amount'] = data['amount']*np.random.rand(len(data)) # Randomize amount for 'other' user
