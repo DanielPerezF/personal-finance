@@ -1,9 +1,10 @@
-streamlit
+streamlit==1.31.0
 pandas
-numpy
+numpy==1.26.
 seaborn
 matplotlib
 plotly
 streamlit_authenticator
 streamlit_option_menu
-st-gsheets-connection
+#st-gsheets-connection
+git+https://github.com/streamlit/gsheets-connection
