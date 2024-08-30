@@ -141,7 +141,7 @@ def monthly_total_spending(monthly, currency, recurrent=[True,False], include=[T
     if st.session_state['gsheet'] != 'inversiones':   # If doubledeg or personal
         mask = (monthly['recurrent'].isin(recurrent))&(monthly['include'].isin(include))
         filtered = monthly[mask] # Apply filters
-        filtered['date'] = pd.to_datetime(filtered['date'], yearfirst=True)
+        filtered.loc[:,'date'] = pd.to_datetime(filtered['date'], yearfirst=True)
         this_month = filtered[(filtered.date.dt.month == today_m) & (filtered.date.dt.year == today_y)] # Get only data from current month
 
         if st.session_state['gsheet'] == 'doubledeg':
@@ -255,36 +255,53 @@ def monthly_spending_plot(filtered,include,currency):
     st.plotly_chart(fig) # Show figure
 
 # --- Stacked bar chart for doubledeg and personal -----
-def stacked_bar_chart(monthly_spend: pd.DataFrame, currency: str, gsheet = 'doubledeg'):
+def stacked_bar_chart(monthly_spend: pd.DataFrame, currency: str, gsheet='doubledeg'):
     totals = monthly_spend.sum(axis=1)  # Total per month
 
     with st.expander('Show monthly chart by category'):
         plt.style.use("dark_background")
+        # Plot the stacked bar chart
         plot = monthly_spend.plot.bar(stacked=True, colormap='Paired', width=0.9)
-        if gsheet == 'personal':  # if sheet personal (that has income and expenses) add a line chart with the total
+        
+        # Plot the total line if the sheet is 'personal'
+        if gsheet == 'personal':
             totals.plot(ax=plot, color='red', linewidth=1.5, label='Total', linestyle='--')
-        # plot.set_xlabel('Date')
+
         plot.tick_params(axis='x', rotation=90)
-        plot.set_ylabel('Amount '+currency)
+        plot.set_ylabel('Amount ' + currency)
         ylabels = ['{:,.0f}'.format(y) for y in plot.get_yticks()]
         plot.set_yticklabels(ylabels)
         plot.set_title('Monthly spending')
         plot.autoscale(enable=True, axis='x', tight=True)
 
-        # move the legend
+        # Update the legend
         handles, labels = plot.get_legend_handles_labels()
-        plot.legend(reversed(handles), reversed(labels), title='Category', bbox_to_anchor=(1, 1.02),
-                    loc='upper left', frameon=False, title_fontproperties={'weight':"bold", 'size':'large'})
+        plot.legend(handles=handles, labels=labels, title='Category', bbox_to_anchor=(1, 1.02),
+                    loc='upper left', frameon=False, title_fontproperties={'weight': "bold", 'size': 'large'})
+
+        # Display the plot in Streamlit
         st.pyplot(plot.figure, clear_figure=True)
-        st.text('\n')       # Add extra space
+        st.text('\n')  # Add extra space
 
 # --- Heatmap ------------
-def get_monthly_heatmap(monthly_spend: pd.DataFrame):
+def get_monthly_heatmap(monthly_spend: pd.DataFrame, gsheet='doubledeg'):
+    if gsheet == 'personal':
+        cmap = 'RdYlGn'  # Red for negative, Yellow for neutral, Green for positive
+    else:
+        cmap = None
+
     with st.expander('Show heatmap'):
-        fig = px.imshow(monthly_spend, text_auto=True, aspect="auto")
+        # Use a divergent color scale with green for positive and red for negative values
+        fig = px.imshow(
+            monthly_spend,
+            text_auto=True,
+            aspect="auto",
+            color_continuous_scale=cmap  # Red for negative, Yellow for neutral, Green for positive
+        )
         fig.update_xaxes(side="top")
-        fig.update_layout(xaxis_title=None)
-        st.plotly_chart(fig, theme=None) # , theme="streamlit"
+        fig.update_layout(xaxis_title=None,
+                          coloraxis_colorbar=dict(title="Value"))
+        st.plotly_chart(fig, theme=None)  # , theme="streamlit"
 
 def pie_plot_invs(new_data):
     active_invs = new_data[new_data['Active']][['Investment', 'Platform', 'Type','Amount opening','Opening date']]

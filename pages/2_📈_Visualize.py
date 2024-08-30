@@ -60,10 +60,16 @@ else:
                 monthly_spend = utils.monthly_table(filtered_data)
 
                 # --- Stacked bar chart -------
-                utils.stacked_bar_chart(monthly_spend, currency, gsheet)
+                try:
+                    utils.stacked_bar_chart(monthly_spend, currency, gsheet)
+                except:
+                    st.error('Error generating barchart')
 
                 # --- Heatmap ------------
-                utils.get_monthly_heatmap(monthly_spend)
+                try:
+                    utils.get_monthly_heatmap(monthly_spend, gsheet)
+                except:
+                    st.error('Error generating heatmap')
             
             else:
                 st.warning('No data matches the filters')
