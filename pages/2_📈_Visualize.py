@@ -26,7 +26,7 @@ else:
             new_data = utils.process_investments(new_data)
             utils.pie_plot_invs(new_data)
 
-        else:  # if personal or doubledeg where date column exists
+        else:  # if colombia or italia where date column exists
             new_data['date'] = pd.to_datetime(new_data['date'], yearfirst=True)
 
             # --- Filter-------
@@ -61,7 +61,7 @@ else:
 
                 # --- Stacked bar chart -------
                 try:
-                    utils.stacked_bar_chart(monthly_spend, currency, gsheet)
+                    utils.stacked_bar_chart(new_data, currency)
                 except:
                     st.error('Error generating barchart')
 

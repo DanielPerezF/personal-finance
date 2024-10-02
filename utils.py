@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.patches as mpatches
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import date
 from streamlit_option_menu import option_menu
 import numpy as np
 
 # --- READ DATA ------------------------------------------
 # @st.cache_data(ttl=1) #Refresh every n seconds
-def read_data(conn, username, gsheet='doubledeg', ncols=6):
+def read_data(conn, username, gsheet='italia', ncols=6):
     """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
 
     data = conn.read(usecols=list(range(ncols)), worksheet=gsheet)
@@ -32,11 +33,11 @@ def get_sheet_and_cols(selection: str):
     """Get the Google Sheet, number of columns to read and currency for the selected database"""
 
     if selection=='Italy':
-        gsheet = 'doubledeg'
+        gsheet = 'italia'
         ncols = 6
         currency = '\N{euro sign}'
     elif selection=='Colombia':
-        gsheet = 'personal'
+        gsheet = 'colombia'
         ncols = 6
         currency = '$'
     elif selection=='Investments':
@@ -58,8 +59,8 @@ def sheet_menu(default = 0):
     """Show the menu to select the Google Sheet and return the selected option as a string"""
 
     if 'gsheet' not in st.session_state:                # When initializing the app gsheet is not in session state
-        st.session_state['gsheet'] = 'doubledeg'        # Initialize as doubledeg
-    elif st.session_state['gsheet'] == 'personal':      # If gsheet already has a value show the menu with the corresponding state
+        st.session_state['gsheet'] = 'italia'        # Initialize as italia
+    elif st.session_state['gsheet'] == 'colombia':      # If gsheet already has a value show the menu with the corresponding state
         default = 1 # second option: Colombia
     elif st.session_state['gsheet'] == 'inversiones':
         default = 2 # third option: Investments
@@ -80,17 +81,17 @@ def sheet_menu(default = 0):
 def get_categories(sheet: str) -> list:
     """Get the different possible categories of spending/investments for the selected sheet"""
 
-    if sheet=="doubledeg":
-        categories = ['Administrativo','Alojamiento','Celular','Comida U','Compras varias',
-                        'Mercado','Salidas','Salud','Transporte','Viajes']
-    elif sheet=="personal":
+    if sheet=="italia":
+        categories = ['Salidas','Mercado','Trabajo','Administrativo','Alojamiento',
+                      'Compras varias','Servicios','Almuerzos','Transporte','Viajes','Salud']
+    elif sheet=="colombia":
         categories = ['Ahorros','Salidas','Transporte','Compras','Viajes','Salario','Clases particulares']
     elif sheet=="inversiones":
         categories = ['Acciones','Fondo','Divisas','ETF','Particular']
 
     return categories
 
-# --- show raw data for doubledeg and personal --------------------------
+# --- show raw data for italia and colombia --------------------------
 def show_raw_data(df: pd.DataFrame, gsheet: str, currency: str) -> pd.DataFrame:
     """Show the raw data in a table depending on the sheet selected. Pass st.session_state['data'], st.session_state['gsheet'] and currency as inputs
       and returns the table with the modifications"""
@@ -106,7 +107,7 @@ def show_raw_data(df: pd.DataFrame, gsheet: str, currency: str) -> pd.DataFrame:
                                                     'Closing date':st.column_config.DateColumn('Closing date'),
                                                     'Type':st.column_config.SelectboxColumn('Type', help='Type of investment', required = True, options=get_categories(gsheet))},
                                     num_rows='dynamic')
-    else:  # sheets personal and doubledeg
+    else:  # sheets colombia and italia
         df = df.copy().astype({'recurrent':bool,'include':bool}).sort_values(by='date',ascending=False)
         df['date'] = pd.to_datetime(df['date'], yearfirst=True)
         categories = get_categories(gsheet)
@@ -138,21 +139,16 @@ def monthly_total_spending(monthly, currency, recurrent=[True,False], include=[T
     today_m = date.today().month
     today_y = date.today().year
 
-    if st.session_state['gsheet'] != 'inversiones':   # If doubledeg or personal
+    if st.session_state['gsheet'] != 'inversiones':   # If italia or colombia
         mask = (monthly['recurrent'].isin(recurrent))&(monthly['include'].isin(include))
         filtered = monthly[mask] # Apply filters
         filtered.loc[:,'date'] = pd.to_datetime(filtered['date'], yearfirst=True)
         this_month = filtered[(filtered.date.dt.month == today_m) & (filtered.date.dt.year == today_y)] # Get only data from current month
 
-        if st.session_state['gsheet'] == 'doubledeg':
-            this_month_sum = this_month['amount'].sum()                                                 # Total amount spent this month
-            st.write('This month you have spent ' +currency + '{:,.0f}'.format(this_month_sum))
-
-        elif st.session_state['gsheet'] == 'personal':
-            this_month_sum = -this_month[this_month['amount'] < 0]['amount'].sum()                      # Total amount spent this month (negative values represent expenses)
-            st.write('This month you have spent ' +currency + '{:,.0f}'.format(this_month_sum))
-            this_month_balance = this_month['amount'].sum()                                             # Total balance for this month (considering expenses and income)
-            st.write('This month your balance is ' +currency + '{:,.0f}'.format(this_month_balance))
+        this_month_sum = -this_month[this_month['amount'] < 0]['amount'].sum()                      # Total amount spent this month (negative values represent expenses)
+        st.write('This month you have spent ' +currency + '{:,.0f}'.format(this_month_sum))
+        this_month_balance = this_month['amount'].sum()                                             # Total balance for this month (considering expenses and income)
+        st.write('This month your balance is ' +currency + '{:,.0f}'.format(this_month_balance))
         return filtered                                                                                 # Return the filtered dataframe used for further plotting
 
     elif st.session_state['gsheet'] == 'inversiones':
@@ -197,19 +193,19 @@ def show_input_data(gsheet):
         comments = st.text_input('Comments')
 
         new_row = [inv_name,platform,type,opening_date,amount_opening,None,None,comments]  # Leave closing date and Amount closing empty
-    elif gsheet == 'doubledeg':       # doubledeg and personal
-        col1, col2 = st.columns(2)
-        date = col1.date_input('Date').strftime("%Y-%m-%d")
-        amount = col2.number_input('Amount')
-        category = st.selectbox('Category', get_categories(gsheet))
-        description = st.text_input('Description')
-        col1, col2 = st.columns(2)
-        recurrent = col1.checkbox('Recurrent spending', value=True) # If movement is recurrent monthly
-        include = col2.checkbox('Include', value=True)              # If want to include movement later in visualizations and aggregations
+    # elif gsheet == 'italia':       # italia and colombia
+    #     col1, col2 = st.columns(2)
+    #     date = col1.date_input('Date').strftime("%Y-%m-%d")
+    #     amount = col2.number_input('Amount')
+    #     category = st.selectbox('Category', get_categories(gsheet))
+    #     description = st.text_input('Description')
+    #     col1, col2 = st.columns(2)
+    #     recurrent = col1.checkbox('Recurrent spending', value=True) # If movement is recurrent monthly
+    #     include = col2.checkbox('Include', value=True)              # If want to include movement later in visualizations and aggregations
 
-        new_row = [date,amount,category,description,recurrent,include] # Data for new row
+    #     new_row = [date,amount,category,description,recurrent,include] # Data for new row
 
-    elif gsheet == 'personal':
+    else: #elif gsheet == 'colombia':
         col1, col2 = st.columns(2)
         date = col1.date_input('Date').strftime("%Y-%m-%d")
         amount = col2.number_input('Amount', step=1, format='%d')
@@ -237,7 +233,7 @@ def monthly_table(filtered_data: pd.DataFrame):
         st.dataframe(total_monthly_spend.iloc[::-1]) # See the table with total monthly spending for each category, most recent first
     return monthly_spend
 
-# --- Monthly spending plot for personal and doubledeg (used in home page) ------------
+# --- Monthly spending plot for colombia and italia (used in home page) ------------
 def monthly_spending_plot(filtered,include,currency):
     filtered = filtered.set_index('date')
     if False in include: # In order to show different colors
@@ -254,38 +250,52 @@ def monthly_spending_plot(filtered,include,currency):
     fig.update_xaxes(dtick="M1",tickformat="%b\n%Y") # Show monthly ticks in x-axis
     st.plotly_chart(fig) # Show figure
 
-# --- Stacked bar chart for doubledeg and personal -----
-def stacked_bar_chart(monthly_spend: pd.DataFrame, currency: str, gsheet='doubledeg'):
-    totals = monthly_spend.sum(axis=1)  # Total per month
+# --- Stacked bar chart for italia and colombia -----
+def stacked_bar_chart(base_df: pd.DataFrame, currency: str):
+    
+    df_filtered = base_df.copy()
+    df_filtered['month'] = df_filtered['date'].dt.strftime('%Y-%m')
+    monthly_expenses = df_filtered.groupby(['month', 'category'])['amount'].sum().reset_index()
+
+    # Calculate total balance for each month
+    monthly_balance = df_filtered.groupby('month')['amount'].sum().reset_index()
 
     with st.expander('Show monthly chart by category'):
         plt.style.use("dark_background")
         # Plot the stacked bar chart
-        plot = monthly_spend.plot.bar(stacked=True, colormap='Paired', width=0.9)
         
-        # Plot the total line if the sheet is 'personal'
-        if gsheet == 'personal':
-            totals.plot(ax=plot, color='red', linewidth=1.5, label='Total', linestyle='--')
-
-        plot.tick_params(axis='x', rotation=90)
-        plot.set_ylabel('Amount ' + currency)
-        ylabels = ['{:,.0f}'.format(y) for y in plot.get_yticks()]
-        plot.set_yticklabels(ylabels)
-        plot.set_title('Monthly spending')
-        plot.autoscale(enable=True, axis='x', tight=True)
-
-        # Update the legend
-        handles, labels = plot.get_legend_handles_labels()
-        plot.legend(handles=handles, labels=labels, title='Category', bbox_to_anchor=(1, 1.02),
-                    loc='upper left', frameon=False, title_fontproperties={'weight': "bold", 'size': 'large'})
+        fig = px.bar(monthly_expenses, 
+                        x='month', 
+                        y='amount', 
+                        color='category', 
+                        title='Monthly Expenses and Income by Category', 
+                        labels={'amount': f'Amount ({currency})', 'month': 'Month'},
+                        text_auto=True)
+        
+        # Add the line plot for total balance
+        fig.add_trace(go.Scatter(x=monthly_balance['month'], 
+                                 y=monthly_balance['amount'], 
+                                 mode='lines+markers', 
+                                 name='Total Balance',
+                                 line=dict(color='black', width=2)))
+        
+        # Add a thicker horizontal line at y=0 that spans the entire chart
+        fig.add_shape(type='line',
+                      x0=0, 
+                      x1=1, 
+                      y0=0, y1=0,
+                      line=dict(color='gray', width=2, dash='dash'),  # Customize color, width, and dash style
+                      xref='paper',  # xref is set to paper to span the full width of the chart
+                      yref='y')
 
         # Display the plot in Streamlit
-        st.pyplot(plot.figure, clear_figure=True)
+        #st.pyplot(plot.figure, clear_figure=True)
+        st.plotly_chart(fig, use_container_width=True)
         st.text('\n')  # Add extra space
 
 # --- Heatmap ------------
-def get_monthly_heatmap(monthly_spend: pd.DataFrame, gsheet='doubledeg'):
-    if gsheet == 'personal':
+def get_monthly_heatmap(monthly_spend: pd.DataFrame, gsheet='italia'):
+    if gsheet == 'colombia' or gsheet == 'italia':
         cmap = 'RdYlGn'  # Red for negative, Yellow for neutral, Green for positive
     else:
         cmap = None

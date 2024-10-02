@@ -8,6 +8,7 @@ from yaml.loader import SafeLoader
 import utils
 
 # --- HOME PAGE ------------------------------
+st.set_page_config(layout="wide")
 st.title('Personal finance app')
 st.text('Keep track of personal spending. Add transactions and visualize spending.\nBased on a private dataset in GoogleSheets.')
 # Allow users to login
