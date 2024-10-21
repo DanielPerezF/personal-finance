@@ -208,7 +208,7 @@ def show_input_data(gsheet):
     else: #elif gsheet == 'colombia':
         col1, col2 = st.columns(2)
         date = col1.date_input('Date').strftime("%Y-%m-%d")
-        amount = col2.number_input('Amount', step=0.1, format='%d')
+        amount = col2.number_input('Amount', step=0.1)  # , format='%d'
         category = st.selectbox('Category', get_categories(gsheet))
         description = st.text_input('Description')
         col1, col2, col3 = st.columns(3)
