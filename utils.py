@@ -82,7 +82,7 @@ def get_categories(sheet: str) -> list:
     """Get the different possible categories of spending/investments for the selected sheet"""
 
     if sheet=="italia":
-        categories = ['Salidas','Mercado','Trabajo','Administrativo','Alojamiento',
+        categories = ['Salidas','Mercado','Trabajo','Administrativo','Alojamiento','Ahorros',
                       'Compras varias','Servicios','Almuerzos','Transporte','Viajes','Salud']
     elif sheet=="colombia":
         categories = ['Ahorros','Salidas','Transporte','Compras','Viajes','Salario','Clases particulares']
