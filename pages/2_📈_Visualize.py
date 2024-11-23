@@ -9,15 +9,29 @@ selected = utils.sheet_menu()
 gsheet, ncols, currency = utils.get_sheet_and_cols(selected)
 st.write('Working in the _{}_ sheet'.format(st.session_state['gsheet']))
 
-if 'auth_state' not in st.session_state: # In case user is not logged in (maybe after exiting and re-entering the app)
-    st.warning("Go back to Home page to login")
-else:
-    authentication_status = st.session_state['auth_state']
-    if authentication_status == False:
-        st.error('Username or password are incorrect')
-    elif authentication_status == None:
-        st.warning("Go back to Home page to login")
-    elif authentication_status:
+# if 'auth_state' not in st.session_state: # Check if user is logged in
+#     # st.warning("Go back to Home page to login")
+#     authentication_status = True
+#     username = 'not_other'
+#     st.session_state['auth_state'] = authentication_status
+# else:
+#     authentication_status = True # st.session_state['auth_state']
+#     if authentication_status == False:
+#         st.error('Username or password are incorrect')
+#     elif authentication_status == None:
+#         st.warning("Go back to Home page to login")
+#     elif authentication_status:
+
+if 'auth' not in st.session_state:
+    inserted_pw = st.number_input('Write the required PIN to insert data', step=1) # Can modify data only with the correct password
+    if inserted_pw == int(st.secrets['password']): # Check if password is correct
+        st.session_state['auth'] = True
+        st.success('Correct password')
+    else:
+        st.error('Incorrect password')
+
+if 'auth' in st.session_state:
+    if st.session_state['auth']:
 
         # --- INSIDE APP AFTER LOGIN -------------
         new_data = st.session_state['data'].copy() # Read the data and format dates
@@ -75,5 +89,5 @@ else:
                 st.warning('No data matches the filters')
 
         # --- Sidebar ---------------
-        authenticator = st.session_state['authenticator']
-        authenticator.logout('Logout', 'sidebar')
+        # authenticator = st.session_state['authenticator']
+        # authenticator.logout('Logout', 'sidebar')

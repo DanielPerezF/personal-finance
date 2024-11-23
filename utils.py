@@ -44,6 +44,10 @@ def get_sheet_and_cols(selection: str):
         gsheet = 'inversiones'
         ncols = 8
         currency = '$'
+    elif selection=='Lupi':
+        gsheet = 'juanis'
+        ncols = 6
+        currency = '$'
     st.session_state['gsheet'] = gsheet
     return gsheet, ncols, currency
 
@@ -64,11 +68,13 @@ def sheet_menu(default = 0):
         default = 1 # second option: Colombia
     elif st.session_state['gsheet'] == 'inversiones':
         default = 2 # third option: Investments
+    elif st.session_state['gsheet'] == 'juanis':
+        default = 3 # fourth option: Juanis
 
     selected = option_menu(
         menu_title=None,
-        options=['Italy','Colombia','Investments'],
-        icons=['airplane','house','cash'],
+        options=['Italy','Colombia','Investments','Lupi'],
+        icons=['airplane','house','cash','heart'],
         default_index=default,
         menu_icon='cast',
         orientation='horizontal',
@@ -88,6 +94,9 @@ def get_categories(sheet: str) -> list:
         categories = ['Ahorros','Salidas','Transporte','Compras','Viajes','Salario','Clases particulares']
     elif sheet=="inversiones":
         categories = ['Acciones','Fondo','Divisas','ETF','Particular']
+    elif sheet=="juanis":
+        categories = ['Salidas','Mercado','Trabajo','Administrativo','Alojamiento','Ahorros',
+                      'Compras varias','Servicios','Almuerzos','Transporte','Viajes','Salud']
 
     return categories
 
