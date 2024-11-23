@@ -57,7 +57,7 @@ def on_change(key):
     selection = st.session_state[key]
     gsheet, ncols, _ = get_sheet_and_cols(selection)
     st.session_state['gsheet'] = gsheet
-    read_data(st.session_state['conn'], st.session_state['username'], gsheet = gsheet, ncols = ncols)
+    read_data(st.session_state['conn'], 'not_other', gsheet = gsheet, ncols = ncols)
 
 def sheet_menu(default = 0):
     """Show the menu to select the Google Sheet and return the selected option as a string"""
