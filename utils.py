@@ -220,12 +220,14 @@ def show_input_data(gsheet):
         amount = col2.number_input('Amount', step=0.1)  # , format='%d'
         category = st.selectbox('Category', get_categories(gsheet))
         description = st.text_input('Description')
-        col1, col2, col3 = st.columns(3)
-        recurrent = col1.checkbox('Recurrent spending', value=True) # If movement is recurrent monthly
-        include = col2.checkbox('Include', value=True)              # If want to include movement later in visualizations and aggregations
-        expense = col3.checkbox('Expense', value=True)              # If movement is an expense, if not is considered an income
 
-        if expense:
+        col1, col2, col3 = st.columns(3)
+        index_income = 1 if category == 'Trabajo' or category=='Ahorros' else 0
+        expense = col1.radio('Income/Expense', ['Expense','Income'], index=index_income)              # If movement is an expense, if not is considered an income
+        recurrent = col3.checkbox('Recurrent spending', value=True) # If movement is recurrent monthly
+        include = col2.checkbox('Include', value=True)              # If want to include movement later in visualizations and aggregations
+        
+        if expense=='Expense':
             amount = -amount                                        # If expense, change sign to negative
         new_row = [date,amount,category,description,recurrent,include] # Data for new row
 

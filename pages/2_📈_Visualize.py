@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import utils
+from streamlit_gsheets import GSheetsConnection
 
 
 # --- VISUALIZATIONS ---------------------
@@ -34,6 +35,15 @@ if 'auth' in st.session_state:
     if st.session_state['auth']:
 
         # --- INSIDE APP AFTER LOGIN -------------
+        if 'data' not in st.session_state: # In case the data was already read before
+            conn = st.connection("gsheets", type=GSheetsConnection, ttl=1)
+            st.session_state['conn'] = conn # Save connection status to database in session state
+            utils.read_data(st.session_state['conn'], 'not_other', gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
+
+        if st.button('Reload data'): # Manually reading data
+            utils.read_data(st.session_state['conn'], 'not_other', gsheet=gsheet, ncols=ncols)
+            st.success('Data loaded')
+
         new_data = st.session_state['data'].copy() # Read the data and format dates
 
         if gsheet == 'inversiones': 
