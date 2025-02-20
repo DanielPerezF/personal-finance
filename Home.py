@@ -53,7 +53,7 @@ if 'auth' in st.session_state:
 
         # --- READ DATA FROM GOOGLE SHEETS ---------------------
         # url = st.secrets["public_gsheets_url"] # Used if google sheets is public
-        conn = st.connection("gsheets", type=GSheetsConnection, ttl=1)
+        conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
         st.session_state['conn'] = conn # Save connection status to database in session state
 
         # --- CHOOSE OPTION ------------------------------
@@ -63,11 +63,17 @@ if 'auth' in st.session_state:
         gsheet, ncols, currency = utils.get_sheet_and_cols(selected)
 
         if 'data' not in st.session_state: # In case the data was already read before
-            utils.read_data(st.session_state['conn'], 'not_other', gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
+            utils.read_data('not_other', gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
+        # utils.read_data('not_other', gsheet=gsheet, ncols=ncols) # Read the data from the selected sheet
 
-        if st.button('Reload data'): # Manually reading data
-            utils.read_data(st.session_state['conn'], 'not_other', gsheet=gsheet, ncols=ncols)
-            st.success('Data loaded')
+        #if st.button('Reload data'): # Manually reading data
+        #    if 'data' in st.session_state:
+        #        del st.session_state['data']  # Remove old session state data
+        #    del st.session_state['conn']
+        #    utils.read_data('not_other', gsheet=gsheet, ncols=ncols)
+        #    st.success('Data loaded')
+
+        #st.write(st.session_state['data'].tail(10))
 
         # --- MONTHLY SPENDING --------------------------------------
         # See the spending of current and previous month

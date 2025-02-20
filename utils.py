@@ -8,14 +8,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import date
 from streamlit_option_menu import option_menu
+from streamlit_gsheets import GSheetsConnection
 import numpy as np
+import time
 
 # --- READ DATA ------------------------------------------
-# @st.cache_data(ttl=1) #Refresh every n seconds
-def read_data(conn, username, gsheet='italia', ncols=6):
+# @st.cache_data(ttl=0, show_spinner=False) #Refresh every n seconds
+def read_data(username, gsheet='italia', ncols=6):
     """Read data from Google Sheets dataset into a dataframe and save it in the session state as 'data'"""
 
-    data = conn.read(usecols=list(range(ncols)), worksheet=gsheet)
+    # Delete the existing connection to prevent cached reads
+    if 'conn' in st.session_state:
+        del st.session_state['conn']
+
+    time.sleep(1)  # Allow time for API cache to clear
+    st.session_state['conn'] = st.connection("gsheets", type=GSheetsConnection, ttl=0) # Reset connection / Save connection status to database in session state
+    data = st.session_state['conn'].read(usecols=list(range(ncols)), worksheet=gsheet)
+
     if gsheet == 'inversiones':
         data['Opening date'] = pd.to_datetime(data['Opening date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
         data['Closing date'] = pd.to_datetime(data['Closing date'], yearfirst=True).dt.strftime('%Y-%m-%d') # Leave as string to avoid bugs of date format changing
@@ -57,7 +66,7 @@ def on_change(key):
     selection = st.session_state[key]
     gsheet, ncols, _ = get_sheet_and_cols(selection)
     st.session_state['gsheet'] = gsheet
-    read_data(st.session_state['conn'], 'not_other', gsheet = gsheet, ncols = ncols)
+    read_data('not_other', gsheet = gsheet, ncols = ncols)
 
 def sheet_menu(default = 0):
     """Show the menu to select the Google Sheet and return the selected option as a string"""
@@ -229,20 +238,28 @@ def show_input_data(gsheet):
         
         if expense=='Expense':
             amount = -amount                                        # If expense, change sign to negative
-        new_row = [date,amount,category,description,recurrent,include] # Data for new row
+        new_row = [date,amount,category,description,1*recurrent,1*include] # Data for new row   ,time.time()
 
     return new_row
 
 # --- PLOTS ----------------------------------------------------------------------------------------------
 # --- Monthly table with totals ----------------
 def monthly_table(filtered_data: pd.DataFrame):    
-    monthly_spend = pd.pivot_table(filtered_data, values = 'amount', columns='category', index='Date', aggfunc='sum', sort=False)
+    monthly_pivot = pd.pivot_table(filtered_data, values = 'amount', columns='category', index='Date', aggfunc='sum', sort=False)
     with st.expander('Show monthly table by category'):
         st.subheader('Montly data')
-        total_monthly_spend = monthly_spend.copy()
-        total_monthly_spend.insert(0,'Total',total_monthly_spend.sum(axis=1))  # Insert a first column with the totals
-        st.dataframe(total_monthly_spend.iloc[::-1]) # See the table with total monthly spending for each category, most recent first
-    return monthly_spend
+        col1, col2 = st.columns([1,3])
+        monthly_balance = monthly_pivot.sum(axis=1)
+        expenses = filtered_data[filtered_data['amount']<0].pivot_table(values = 'amount', columns='category', index='Date', aggfunc='sum', sort=False)
+        monthly_expenses = expenses.sum(axis=1)
+
+        total_monthly_table = pd.DataFrame(index = monthly_pivot.index)
+        total_monthly_table['Balance'] = monthly_balance  # Insert a first column with the totals
+        total_monthly_table['Expenses'] = monthly_expenses  # Insert a first column with the totals
+
+        col1.dataframe(total_monthly_table.iloc[::-1]) # See the table with total monthly balance and spending
+        col2.dataframe(monthly_pivot.iloc[::-1]) # See the table with total monthly spending for each category, most recent first
+    return monthly_pivot
 
 # --- Monthly spending plot for colombia and italia (used in home page) ------------
 def monthly_spending_plot(filtered,include,currency):
